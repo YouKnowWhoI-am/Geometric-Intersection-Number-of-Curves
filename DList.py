@@ -1,9 +1,3 @@
-import main
-# Need to break this into two files, to avoid circular import.
-
-index_a = main.index_a
-nbr_a = main.nbr_a
-
 # Except for self.start.edge every other node.edge might just be garbage.
 # We need the self.start.edge to compute the geodesic from the turn sequence. 
 # We don't bother to update the edge of the other nodes, as they will make the running time of the algorithm O(l^2) instead of O(l).
@@ -23,8 +17,10 @@ class Node:
         self.prev = None
 	
 class DoublyLinkedList:
-    def __init__(self):
+    def __init__(self, index_a, nbr_a):
         self.start = None
+        self.index_a = index_a
+        self.nbr_a = nbr_a
 
     def check_empty(self):
         if self.start == None:
@@ -97,9 +93,9 @@ class DoublyLinkedList:
 
             for i in range(node.run_length):
                 if i % 2 == 1:
-                    edge = (edge + node.turn) % len(nbr_a) # Note len(nbr_a) = len(nbr_z) = len(M)
+                    edge = (edge + node.turn) % len(self.nbr_a) # Note len(self.nbr_a) = len(nbr_z) = len(M)
                 else:
-                    edge = nbr_a[(index_a[edge] + node.turn) % len(nbr_a)]
+                    edge = self.nbr_a[(self.index_a[edge] + node.turn) % len(self.nbr_a)]
             self.start.edge = edge
             self.start.vertex = (self.start.vertex + (node.run_length % 2)) % 2 
 

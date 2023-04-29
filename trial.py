@@ -85,6 +85,11 @@ print(arr)
 print("Hello World\n")
 print("Hello World2\n")
 '''
+
+# index_a = [0] * len(M) # To ensure the function turn, defined later, runs in O(1) time, we need to store the index of each edge in the cycle.
+# nbr_a = [0] * len(M) #nbr_z is the list {0, 1, ..., len(M)-1} in the order of the edges in the cycle.
+# spoke = [set() for j in range(len(M))] # spoke[i] stores the unique set of 4 neighbours of the edge i. We are not worried about the order.
+
 import main
 # Need to break this into two files, to avoid circular import.
 

@@ -1,5 +1,7 @@
 import sys
-import DList, reductions
+import DList
+import reductions
+import Sys_of_Quads
 import numpy as np
 
 # The input is of the form abAcdBCD, where a, b, c, d represents arrow pointing clockwise, A, B, C, D represents arrow pointing counterclockwise.
@@ -10,7 +12,7 @@ euler = int(input('Enter Euler characteristic: '))
 
 if euler == -1:
     print("Enter the fundamental polygon as a list of tuples after entering the genus.")
-    M = list(tuple(map(int, input().split())) for r in range(4*int(input('Enter genus: ')))) # Debug global scope of M. I mean we need it to be global.
+    Matrix = list(tuple(map(int, input().split())) for r in range(4*int(input('Enter genus: ')))) # Debug global scope of M. I mean we need it to be global.
 else:
     print("Enter the fundamental polygon according to the following convention: \n")
     print("1 if it's a sphere or a disk.\n")
@@ -49,94 +51,7 @@ else:
     elif type == 5:
         print("Let a and b be the generators of the fundamental group of the Klein bottle.\n")
 
-# O(n) time complexity.
-def isCombinatorialSurface(M):
-    # Input must be of even length.
-    if len(M) %2 == 1:
-        sys.exit("Invalid Input: Input must be of even length.")
-    elif len(M) % 2 == 0:
-    # Check if the input has adjacent duplicates.
-        if M[0] == M[-1]: sys.exit("Invalid Input: Adjacent sides can'turn_seq be identical.")
-        for i in range(len(M)-2):
-            if M[i] == M[i+1]: sys.exit("Invalid Input: Adjacent sides can'turn_seq be identical.")
-    # Check if the input has each letter twice, ignoring case.
-    counter = [0] * len(M)
-    for x in M:
-        if x[1] > int(len(M)/2):
-            sys.exit("Re-enter Input: Please follow convention of serially naming the edges without skipping any intergers in between.")
-        counter[x[1]-1] = counter[x[1]-1] + 1
-    for i in range(len(counter)):
-        if counter[M[i][1]-1] != 2 and counter[M[i][1]-1] != 0:
-            sys.exit("Invalid Input: Number of edges not equal to 4*genus")       
-    
-isCombinatorialSurface(M)
-
-# Vertex neighbourhood of z is {0} \cup [len(M)-1], in that order.
-# We need a set of faces of the system of quads.
-
-index_a = [0] * len(M) # To ensure the function turn, defined later, runs in O(1) time, we need to store the index of each edge in the cycle.
-nbr_a = [0] * len(M) #nbr_z is the list {0, 1, ..., len(M)-1} in the order of the edges in the cycle.
-spoke = [set() for j in range(len(M))] # spoke[i] stores the unique set of 4 neighbours of the edge i. We are not worried about the order.
-# These three are declared as global so that their original copy is modified by every function that calls them.
-
-# O(n) time complexity.
-def Sys_of_Quads(M):
-    faces = [[0 for i in range(4)] for j in range(int((len(M)/2)))] # 2D list of faces
-    count = [0] * int(len(M)/2)
-    for i in range(len(M)):
-        if count[M[i][1]-1] == 0: #if i'th edge has not occured yet
-            if M[i][0] == 1: #Edge oriented Clockwise
-                faces[M[i][1]-1][0] = i
-                faces[M[i][1]-1][1] = (i + 1) % len(M)
-                count[M[i][1]-1] = 1 #Mark i'th edge as occured once clockwise
-            elif M[i][0] == -1: #Edge oriented Anti-Clockwise
-                faces[M[i][1]-1][0] = i
-                faces[M[i][1]-1][1] = (i + 1) % len(M)
-                count[M[i][1]-1] = 2 #Mark i'th edge as occured once anti-clockwise
-        elif count[M[i][1]-1] != 0: #This edge has already occured once
-            if M[i][0] == 1: #Edge oriented Clockwise
-                if count[M[i][1]-1] == 1: #Previously it also occured clockwise
-                    faces[M[i][1]-1][2] = (i + 1) % len(M)
-                    faces[M[i][1]-1][3] = i 
-                elif count[M[i][1]-1] == 2: #Previously it occured anti-clockwise
-                    faces[M[i][1]-1][2] = i
-                    faces[M[i][1]-1][3] = (i + 1) % len(M)
-            elif M[i][0] == -1: #Edge oriented Anti-Clockwise
-                if count[M[i][1]-1] == 1: #Previously it occured clockwise
-                    faces[M[i][1]-1][2] = i
-                    faces[M[i][1]-1][3] = (i + 1) % len(M)
-                elif count[M[i][1]-1] == 2: #Previously it also occured anti-clockwise
-                    faces[M[i][1]-1][2] = (i + 1) % len(M)
-                    faces[M[i][1]-1][3] = i
-    for i in range(len(M)):
-        if i != 0:
-            nbr_a[i] = faces[f - 1][3 - l]
-            if M[nbr_a[i]][1] != f:
-                f = M[nbr_a[i]][1]
-            else:
-                f = M[nbr_a[i] - 1][1]
-            for j in range(4):
-                if faces[f - 1][j] == nbr_a[i]:
-                     l = j 
-        elif i == 0: # Currently f and l are configured according to nbr_a[i-1]
-            nbr_a[i] = faces[i][1]
-            f = i + 1 # f is the index of the face that contains the edge i
-            l = 1 # l is the index of the edge in the face that contains the edge i
-    for i in range(len(M)):
-        index_a[i] = nbr_a.index(i)
-
-    for i in range(len(M)):
-        for j in range(4):
-            if j == 0:
-                spoke[faces[i][j]].add(faces[i][1])
-                spoke[faces[i][j]].add(faces[i][3])
-            elif j == 1 or j == 2:
-                spoke[faces[i][j]].add(faces[i][j - 1])
-                spoke[faces[i][j]].add(faces[i][j + 1])
-            elif j == 3:
-                spoke[faces[i][j]].add(faces[i][2])
-                spoke[faces[i][j]].add(faces[i][0])
-
+M = Sys_of_Quads.Manifold(Matrix)    
 
 # The input cycle \alpha is an alternating cyclic sequence (v_0, e_1, v_1, e_2, ..., e_l) of vertices and edges.
 # Because \alpha is a cycle in a system of quads, l must be even; v_i = a for all even i and v_i = z for all odd i.
@@ -165,7 +80,7 @@ def turn(e1, v, e2):
     if v == 1: # v is the vertex z
         return e2 - e1
     else: # v is the vertex a
-        return index_a[e2] - index_a[e1]
+        return M.index_a[e2] - M.index_a[e1]
 
 # O(l) time complexity.
 def turn_sequence(c):
@@ -185,7 +100,7 @@ def turn_sequence(c):
 def run_length_encoding(c, turn_seq):
     # turn_seq is a turn sequence
     # The function returns the run-length encoding of turn_seq which is a circular doubly linked list.
-    dlist = DList.DoublyLinkedList()
+    dlist = DList.DoublyLinkedList(M.index_a, M.nbr_a)
     for i in range(len(turn_seq)):
         if i == 0:
             dlist.insertEnd(c[i], turn_seq[i], 1)
@@ -209,7 +124,7 @@ def toEdge_sequence(dlist):
             if i % 2 == 0:
                 edge_seq[i] = edge_seq[i] + temp.turn
             else:
-                edge_seq[i] = nbr_a[index_a[edge_seq[i - 1]] + temp.turn]
+                edge_seq[i] = M.nbr_a[M.index_a[edge_seq[i - 1]] + temp.turn]
             counter += 1
             i += 1
         temp = temp.next
@@ -408,7 +323,7 @@ def canonical(dlist):
 def invert(dlist):
     # Input is a combinatorial curve c.
     # The function returns c^{-1}.
-    dlist_inverse = DList.DoublyLinkedList()
+    dlist_inverse = DList.DoublyLinkedList(M.index_a, M.nbr_a)
     temp = dlist.start
     while (temp.prev != dlist.start):
         dlist_inverse.insertEnd(temp.edge, temp.turn, temp.run_length)
@@ -453,12 +368,10 @@ def helper(match, k, l, length, D, c, d):
 def nbr(e1, e2, v):
     if v == 1:
         if e1 - e2 == 1 or e1 - e2 == -1:
-            return 1
-    
+            return 1    
     elif v == 0:
-        if index_a[e1] - index_a[e2] == 1 or index_a[e1] - index_a[e2] == -1:
-            return 1
-    
+        if M.index_a[e1] - M.index_a[e2] == 1 or M.index_a[e1] - M.index_a[e2] == -1:
+            return 1    
     else:
         return 0
 
@@ -470,8 +383,8 @@ def isCLW(e_1, e_2, e_3, v):
         if E_2 > 0 and E_3 > E_2:
             return 1
     elif v == 0:
-        E_3 = (index_a[e_3] + (len(M) - index_a[e_1])) % len(M)
-        E_2 = (index_a[e_2] + (len(M) - index_a[e_1])) % len(M)
+        E_3 = (M.index_a[e_3] + (len(M) - M.index_a[e_1])) % len(M)
+        E_2 = (M.index_a[e_2] + (len(M) - M.index_a[e_1])) % len(M)
         if E_2 > 0 and E_3 > E_2:
             return 1
 
@@ -569,16 +482,16 @@ def Primitive_intersection(C, D):
                             d_0 += 1
                     # nbr(c_L[i], c_R[i], 0) and c_L[i - 1] == c_R[i - 1] checks if the two boundaries of \Delta concide AT \Delta_L[i] = \Delta_R[i].
 
-                    elif {c_R[i - 1], c_L[i - 1]}.issubset(spoke[d[j - 1]]) or {c_R[i], c_L[i - 2]}.issubset(spoke[d[j - 1]]): # When the spoke is (c_R[i], c_L[i - 1]).
+                    elif {c_R[i - 1], c_L[i - 1]}.issubset(M.spoke[d[j - 1]]) or {c_R[i], c_L[i - 2]}.issubset(M.spoke[d[j - 1]]): # When the M.spoke is (c_R[i], c_L[i - 1]).
                         if d[j - 2] == c_L[i - 2]:
                             d_0 += 1
-                    elif {c_R[i - 1], c_L[i + 1]}.issubset(spoke[d[j - 1]]) or {c_R[i], c_L[i]}.issubset(spoke[d[j - 1]]): # When the spoke is (c_R[i], c_L[i + 1]).
+                    elif {c_R[i - 1], c_L[i + 1]}.issubset(M.spoke[d[j - 1]]) or {c_R[i], c_L[i]}.issubset(M.spoke[d[j - 1]]): # When the M.spoke is (c_R[i], c_L[i + 1]).
                         if d[j - 2] == c_L[i]:
                             d_0 += 1
-                    elif {c_R[i - 1], c_L[i - 1]}.issubset(spoke[d[j]]) or {c_R[i], c_L[i - 2]}.issubset(spoke[d[j]]): # When the spoke is (c_R[i], c_L[i - 1]).
+                    elif {c_R[i - 1], c_L[i - 1]}.issubset(M.spoke[d[j]]) or {c_R[i], c_L[i - 2]}.issubset(M.spoke[d[j]]): # When the M.spoke is (c_R[i], c_L[i - 1]).
                         if d[j + 1] == c_L[i - 2]:
                             d_0 += 1
-                    elif {c_R[i - 1], c_L[i + 1]}.issubset(spoke[d[j]]) or {c_R[i], c_L[i]}.issubset(spoke[d[j]]): # When the spoke is (c_R[i], c_L[i + 1]).
+                    elif {c_R[i - 1], c_L[i + 1]}.issubset(M.spoke[d[j]]) or {c_R[i], c_L[i]}.issubset(M.spoke[d[j]]): # When the M.spoke is (c_R[i], c_L[i + 1]).
                         if d[j + 1] == c_L[i]:
                             d_0 += 1
 
@@ -594,16 +507,16 @@ def Primitive_intersection(C, D):
                             d_0 += 1
                     # nbr(c_L[i], c_R[i], 0) and c_L[i - 1] == c_R[i - 1] checks if the two boundaries of \Delta concide AT \Delta_L[i] = \Delta_R[i].
                     
-                    elif {c_R[i - 1], c_L[i - 1]}.issubset(spoke[d[j - 1]]) or {c_R[i], c_L[i - 2]}.issubset(spoke[d[j - 1]]): # When the spoke is (c_R[i], c_L[i - 1]).
+                    elif {c_R[i - 1], c_L[i - 1]}.issubset(M.spoke[d[j - 1]]) or {c_R[i], c_L[i - 2]}.issubset(M.spoke[d[j - 1]]): # When the M.spoke is (c_R[i], c_L[i - 1]).
                         if d[j - 2] == c_L[i - 2]:
                             d_0 += 1
-                    elif {c_R[i - 1], c_L[i + 1]}.issubset(spoke[d[j - 1]]) or {c_R[i], c_L[i]}.issubset(spoke[d[j - 1]]): # When the spoke is (c_R[i], c_L[i + 1]).
+                    elif {c_R[i - 1], c_L[i + 1]}.issubset(M.spoke[d[j - 1]]) or {c_R[i], c_L[i]}.issubset(M.spoke[d[j - 1]]): # When the M.spoke is (c_R[i], c_L[i + 1]).
                         if d[j - 2] == c_L[i]:
                             d_0 += 1
-                    elif {c_R[i - 1], c_L[i - 1]}.issubset(spoke[d[j]]) or {c_R[i], c_L[i - 2]}.issubset(spoke[d[j]]): # When the spoke is (c_R[i], c_L[i - 1]).
+                    elif {c_R[i - 1], c_L[i - 1]}.issubset(M.spoke[d[j]]) or {c_R[i], c_L[i - 2]}.issubset(M.spoke[d[j]]): # When the M.spoke is (c_R[i], c_L[i - 1]).
                         if d[j + 1] == c_L[i - 2]:
                             d_0 += 1
-                    elif {c_R[i - 1], c_L[i + 1]}.issubset(spoke[d[j]]) or {c_R[i], c_L[i]}.issubset(spoke[d[j]]): # When the spoke is (c_R[i], c_L[i + 1]).
+                    elif {c_R[i - 1], c_L[i + 1]}.issubset(M.spoke[d[j]]) or {c_R[i], c_L[i]}.issubset(M.spoke[d[j]]): # When the M.spoke is (c_R[i], c_L[i + 1]).
                         if d[j + 1] == c_L[i]:
                             d_0 += 1
     
@@ -634,10 +547,10 @@ def Primitive_intersection(C, D):
                         if (nbr(c_L_inverse[D_minus[i][0]], c_R[L - (D_minus[i][0] - 1)], 1) and c_L_inverse[D_minus[i][0] - 1] == c_R[L - D_minus[i][0]] and d[D_minus[i][1] - 1] == c_R[L - (D_minus[i][0] - 1)]):
                             n1 = 1
 
-                    if {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) + 1]}.issubset(spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0])]}.issubset(spoke[d[j - 1]]):
+                    if {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) + 1]}.issubset(M.spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0])]}.issubset(M.spoke[d[j - 1]]):
                         if d[j - 2] == c_R[(L - D_minus[i][0])]:
                             n2 = 1 
-                    elif {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) - 1]}.issubset(spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0]) - 2]}.issubset(spoke[d[j - 1]]):
+                    elif {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) - 1]}.issubset(M.spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0]) - 2]}.issubset(M.spoke[d[j - 1]]):
                         if d[j - 2] == c_R[(L - D_minus[i][0]) - 2]:
                             n2 = 1
                     
@@ -657,10 +570,10 @@ def Primitive_intersection(C, D):
                         if (nbr(c_L_inverse[D_minus[i][0]], c_R[L - (D_minus[i][0] - 1)], 1) and c_L_inverse[D_minus[i][0] - 1] == c_R[L - D_minus[i][0]] and d[D_minus[i][1] - 1] == c_R[L - (D_minus[i][0] - 1)]):
                             n1 = 1
 
-                    if {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) + 1]}.issubset(spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0])]}.issubset(spoke[d[j - 1]]):
+                    if {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) + 1]}.issubset(M.spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0])]}.issubset(M.spoke[d[j - 1]]):
                         if d[j - 2] == c_R[(L - D_minus[i][0])]:
                             n2 = 1 
-                    elif {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) - 1]}.issubset(spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0]) - 2]}.issubset(spoke[d[j - 1]]):
+                    elif {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) - 1]}.issubset(M.spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0]) - 2]}.issubset(M.spoke[d[j - 1]]):
                         if d[j - 2] == c_R[(L - D_minus[i][0]) - 2]:
                             n2 = 1
                     
@@ -704,17 +617,17 @@ def Primitive_intersection(C, D):
                     if (nbr(c_L_inverse[D_minus[i][0] + D_minus[i][2] - 1], c_R[L - (D_minus[i][0] + D_minus[i][2])], 1) and c_L_inverse[D_minus[i][0] + D_minus[i][2]] == c_R[L - (D_minus[i][0] + D_minus[i][2]) - 1] and d[D_minus[i][1] + D_minus[i][2]] == c_R[L - (D_minus[i][0] + D_minus[i][2])]):
                         m2 = 1
                 
-                if {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) + 1]}.issubset(spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0])]}.issubset(spoke[d[j - 1]]):
+                if {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) + 1]}.issubset(M.spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0])]}.issubset(M.spoke[d[j - 1]]):
                     if d[j - 2] == c_R[(L - D_minus[i][0])]:
                         m3 = 1 
-                elif {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) - 1]}.issubset(spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0]) - 2]}.issubset(spoke[d[j - 1]]):
+                elif {c_L_inverse[D_minus[i][0]], c_R[(L - D_minus[i][0]) - 1]}.issubset(M.spoke[d[j - 1]]) or {c_L_inverse[D_minus[i][0] - 1], c_R[(L - D_minus[i][0]) - 2]}.issubset(M.spoke[d[j - 1]]):
                     if d[j - 2] == c_R[(L - D_minus[i][0]) - 2]:
                         m3 = 1
 
-                if {c_L_inverse[D_minus[i][0] + D_minus[i][2]], c_R[(L - D_minus[i][0] - D_minus[i][2]) + 1]}.issubset(spoke[d[j + D_minus[i][2]]]) or {c_L_inverse[D_minus[i][0] + D_minus[i][2] - 1], c_R[(L - D_minus[i][0] - D_minus[i][2])]}.issubset(spoke[d[j + D_minus[i][2]]]):
+                if {c_L_inverse[D_minus[i][0] + D_minus[i][2]], c_R[(L - D_minus[i][0] - D_minus[i][2]) + 1]}.issubset(M.spoke[d[j + D_minus[i][2]]]) or {c_L_inverse[D_minus[i][0] + D_minus[i][2] - 1], c_R[(L - D_minus[i][0] - D_minus[i][2])]}.issubset(M.spoke[d[j + D_minus[i][2]]]):
                     if d[j + D_minus[i][2] + 1] == c_R[(L - D_minus[i][0] - D_minus[i][2]) + 1]:
                         m4 = 1
-                elif {c_L_inverse[D_minus[i][0] + D_minus[i][2]], c_R[(L - D_minus[i][0] - D_minus[i][2]) - 1]}.issubset(spoke[d[j + D_minus[i][2]]]) or {c_L_inverse[D_minus[i][0] + D_minus[i][2] - 1], c_R[(L - D_minus[i][0] - D_minus[i][2]) - 2]}.issubset(spoke[d[j + D_minus[i][2]]]):
+                elif {c_L_inverse[D_minus[i][0] + D_minus[i][2]], c_R[(L - D_minus[i][0] - D_minus[i][2]) - 1]}.issubset(M.spoke[d[j + D_minus[i][2]]]) or {c_L_inverse[D_minus[i][0] + D_minus[i][2] - 1], c_R[(L - D_minus[i][0] - D_minus[i][2]) - 2]}.issubset(M.spoke[d[j + D_minus[i][2]]]):
                     if d[j + D_minus[i][2] + 1] == c_R[(L - D_minus[i][0] - D_minus[i][2]) - 1]:
                         m4 = 1
 
