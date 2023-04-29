@@ -1,5 +1,5 @@
 import main
-# Maybe need to break this into two files, to avoid circular import.
+# Need to break this into two files, to avoid circular import.
 
 index_a = main.index_a
 nbr_a = main.nbr_a

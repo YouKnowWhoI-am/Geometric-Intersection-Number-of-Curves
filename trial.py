@@ -15,7 +15,10 @@ for x in M:
 #print(len(M))
 
 # faces = [[0] * 4] * int((len(M)/2)) (SHALLOW COPY, DOESN'T WORK)
-
+#spoke = [[[0, 0][0, 0]] for j in range(5)]
+#print(spoke)
+print(2 - 3)
+'''
 class Node:
 	def __init__(self, data):
 		self.data = data
@@ -78,3 +81,9 @@ def change(arr):
 	arr[0] = 3
 change(arr)
 print(arr)
+
+print("Hello World\n")
+print("Hello World2\n")
+'''
+
+
