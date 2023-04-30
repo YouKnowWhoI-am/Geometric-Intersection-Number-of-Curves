@@ -1,6 +1,5 @@
 import sys
 import DList
-import reductions
 import Sys_of_Quads
 import numpy as np
 
@@ -12,7 +11,7 @@ euler = int(input('Enter Euler characteristic: '))
 
 if euler == -1:
     print("Enter the fundamental polygon as a list of tuples after entering the genus.")
-    Matrix = list(tuple(map(int, input().split())) for r in range(4*int(input('Enter genus: ')))) # Debug global scope of M. I mean we need it to be global.
+    Matrix = list(tuple(map(int, input().split())) for r in range(4 * int(input('Enter genus: ')))) 
 else:
     print("Enter the fundamental polygon according to the following convention: \n")
     print("1 if it's a sphere or a disk.\n")
@@ -52,6 +51,8 @@ else:
         print("Let a and b be the generators of the fundamental group of the Klein bottle.\n")
 
 M = Sys_of_Quads.Manifold(Matrix)    
+M.check_valid()
+M.Sys_of_Quads()
 
 # The input cycle \alpha is an alternating cyclic sequence (v_0, e_1, v_1, e_2, ..., e_l) of vertices and edges.
 # Because \alpha is a cycle in a system of quads, l must be even; v_i = a for all even i and v_i = z for all odd i.
@@ -65,10 +66,10 @@ def isCombinatorialCurve(c):
         sys.exit("Invalid Input: Input must be of even length.")
 
 print("Enter first Combinatorial Curve:")
-c1 = list(map(int, input()) for r in range(int(input('Enter length: '))))
+c1 = list(int(input()) for r in range(int(input('Enter length: '))))
 isCombinatorialCurve(c1)
 print("Enter second Combinatorial Curve:")
-c2 = list(map(int, input()) for r in range(int(input('Enter length: '))))
+c2 = list(int(input()) for r in range(int(input('Enter length: '))))
 isCombinatorialCurve(c2)
 
 # O(1) time complexity.
@@ -78,9 +79,19 @@ def turn(e1, v, e2):
     if e1 == e2:
         return 0
     if v == 1: # v is the vertex z
-        return e2 - e1
+        if e2 - e1 <= len(M.matrix) // 2 and e2 - e1 >= -len(M.matrix) // 2:
+            return e2 - e1
+        elif e2 - e1 > len(M.matrix) // 2:
+            return e2 - e1 - len(M.matrix)
+        else:
+            return e2 - e1 + len(M.matrix)
     else: # v is the vertex a
-        return M.index_a[e2] - M.index_a[e1]
+        if M.index_a[e2] - M.index_a[e1] <= len(M.matrix) // 2 and M.index_a[e2] - M.index_a[e1] >= -len(M.matrix) // 2:
+            return M.index_a[e2] - M.index_a[e1]
+        elif M.index_a[e2] - M.index_a[e1] > len(M.matrix) // 2:
+            return M.index_a[e2] - M.index_a[e1] - len(M.matrix)
+        else:
+            return M.index_a[e2] - M.index_a[e1] + len(M.matrix)
 
 # O(l) time complexity.
 def turn_sequence(c):
@@ -120,14 +131,16 @@ def toEdge_sequence(dlist):
     counter = 1
     i = 1
     while i < dlist.total_length():
-        while counter <= temp.run_length:
-            if i % 2 == 0:
-                edge_seq[i] = edge_seq[i] + temp.turn
+        while counter < temp.run_length:
+            if (temp.vertex + counter) % 2 == 0:
+                edge_seq[i] = edge_seq[i - 1] + temp.turn
             else:
                 edge_seq[i] = M.nbr_a[M.index_a[edge_seq[i - 1]] + temp.turn]
             counter += 1
             i += 1
         temp = temp.next
+        counter = 0
+        i += 1
     return edge_seq
 
 # O(l) time complexity.
@@ -138,187 +151,6 @@ def isPrimitive(c):
         if i % 2 == 0 and i != 0:
             if turn(c[i - 1], 0, c[i]) != 0:
                 return c
-
-# O(l) time complexity.
-# Remember when we delete the start node from a circular doubly linked list, we update the start pointer as the next pointer.
-def geodesic(dlist):
-    n = len(M)
-    # dlist is the run length encoding of a cycle c.
-    # The function returns a reduced cycle freely homotopic to c.
-    if dlist.check_empty():
-        return 0
-    elif dlist.number_of_runs() > 5:
-        temp = dlist.start
-        while (dlist.number_of_runs() > 5 and (temp != dlist.start.prev or (temp == dlist.start.prev and temp.mark_1 == False))):
-            if temp.next.turn == 0:
-                reductions.std_spur(dlist, temp)
-            elif temp.turn == 0:
-                reductions.std_spur(dlist, temp.prev)
-            elif temp.prev.turn == 0:
-                reductions.std_spur(dlist, temp.prev.prev)
-
-            elif temp.next.turn == 1 and temp.next.next.turn == 2 and temp.next.next.next.turn == 1:
-                reductions.std_lt_bracket(dlist, temp, n)
-            elif temp.turn == 1 and temp.next.turn == 2 and temp.next.next.turn == 1:
-                reductions.std_lt_bracket(dlist, temp.prev, n)
-            elif temp.prev.turn == 1 and temp.turn == 2 and temp.next.turn == 1:
-                reductions.std_lt_bracket(dlist, temp.prev.prev, n)
-            elif temp.prev.prev.turn == 1 and temp.prev.turn == 2 and temp.turn == 1:
-                reductions.std_lt_bracket(dlist, temp.prev.prev.prev, n)
-            elif temp.prev.prev.prev.turn == 1 and temp.prev.prev.turn == 2 and temp.prev.turn == 1:
-                reductions.std_lt_bracket(dlist, temp.prev.prev.prev.prev, n)
-            
-            elif temp.next.turn == n - 1 and temp.next.next.turn == n - 2 and temp.next.next.next.turn == n - 1:
-                reductions.std_rt_bracket(dlist, temp, n)
-            elif temp.turn == n - 1 and temp.next.turn == n - 2 and temp.next.next.turn == n - 1:
-                reductions.std_rt_bracket(dlist, temp.prev, n)
-            elif temp.prev.turn == n - 1 and temp.turn == n - 2 and temp.next.turn == n - 1:
-                reductions.std_rt_bracket(dlist, temp.prev.prev, n)
-            elif temp.prev.prev.turn == n - 1 and temp.prev.turn == n - 2 and temp.turn == n - 1:
-                reductions.std_rt_bracket(dlist, temp.prev.prev.prev, n)
-            elif temp.prev.prev.prev.turn == n - 1 and temp.prev.prev.turn == n - 2 and temp.prev.turn == n - 1:
-                reductions.std_rt_bracket(dlist, temp.prev.prev.prev.prev, n)
-
-            else:
-                temp = temp.next
-                temp.mark_1 = True
-
-    elif dlist.number_of_runs() == 2:
-        if dlist.start.turn == 0 and dlist.start.next.turn == 0:
-            reductions.near_cyclic_spur(dlist, dlist.start)
-
-        elif dlist.start.turn == 1 and dlist.start.next.turn == 2:
-            reductions.cyclic_lt_bracket(dlist, dlist.start, n)
-        elif dlist.start.turn == 2 and dlist.start.next.turn == 1:
-            reductions.cyclic_lt_bracket(dlist, dlist.start.next, n)
-
-        elif dlist.start.turn == n - 1 and dlist.start.next.turn == n - 2:
-            reductions.cyclic_rt_bracket(dlist, dlist.start, n)
-        elif dlist.start.turn == n - 2 and dlist.start.next.turn == n - 1:
-            reductions.cyclic_rt_bracket(dlist, dlist.start.next, n)
-
-    elif dlist.number_of_runs() == 4:
-        if dlist.start.next.turn == 1 and dlist.start.next.next.turn == 2 and dlist.start.next.next.next.turn == 1:
-            reductions.near_cyclic_lt_bracket(dlist, dlist.start, n)
-        elif dlist.start.turn== 1 and dlist.start.next.turn == 2 and dlist.start.next.next.turn == 1:
-            reductions.near_cyclic_lt_bracket(dlist, dlist.start.prev, n)
-        elif dlist.start.turn == 2 and dlist.start.next.turn == 1 and dlist.start.prev.turn == 1:
-            reductions.near_cyclic_lt_bracket(dlist, dlist.start.prev.prev, n)
-        elif dlist.start.turn == 1 and dlist.start.prev.turn == 2 and dlist.start.prev.prev.turn == 1:
-            reductions.near_cyclic_lt_bracket(dlist, dlist.start.next, n)
-
-        elif dlist.start.next.turn == n - 1 and dlist.start.next.next.turn == n - 2 and dlist.start.next.next.next.turn == n - 1:
-            reductions.near_cyclic_rt_bracket(dlist, dlist.start, n)
-        elif dlist.start.turn == n - 1 and dlist.start.next.turn == n - 2 and dlist.start.next.next.turn == n - 1:
-            reductions.near_cyclic_rt_bracket(dlist, dlist.start.prev, n)
-        elif dlist.start.turn == n - 2 and dlist.start.next.turn == n - 1 and dlist.start.prev.turn == n - 1:
-            reductions.near_cyclic_rt_bracket(dlist, dlist.start.prev.prev, n)
-        elif dlist.start.turn == n - 1 and dlist.start.prev.turn == n - 2 and dlist.start.prev.prev.turn == n - 1:
-            reductions.near_cyclic_rt_bracket(dlist, dlist.start.next, n)
-
-    elif dlist.number_of_runs() == 5:
-        if dlist.start.next.turn == 1 and dlist.start.next.next.turn == 2 and dlist.start.next.next.next.turn == 1:
-            reductions.std_lt_bracket(dlist, dlist.start, n)
-        elif dlist.start.turn == 1 and dlist.start.next.turn == 2 and dlist.start.next.next.turn == 1:
-            reductions.std_lt_bracket(dlist, dlist.start.prev, n)
-        elif dlist.start.turn == 2 and dlist.start.next.turn == 1 and dlist.start.prev.turn == 1:
-            reductions.std_lt_bracket(dlist, dlist.start.prev.prev, n)
-        elif dlist.start.turn == 1 and dlist.start.prev.turn == 2 and dlist.start.prev.prev.turn == 1:
-            reductions.std_lt_bracket(dlist, dlist.start.prev.prev.prev, n)
-        elif dlist.start.prev.turn == 1 and dlist.start.prev.prev.turn == 2 and dlist.start.prev.prev.prev.turn == 1:
-            reductions.std_lt_bracket(dlist, dlist.start.next, n)
-
-        elif dlist.start.next.turn == n - 1 and dlist.start.next.next.turn == n - 2 and dlist.start.next.next.next.turn == n - 1:
-            reductions.std_rt_bracket(dlist, dlist.start, n)
-        elif dlist.start.turn == n - 1 and dlist.start.next.turn == n - 2 and dlist.start.next.next.turn == n - 1:
-            reductions.std_rt_bracket(dlist, dlist.start.prev, n)
-        elif dlist.start.turn == n - 2 and dlist.start.next.turn == n - 1 and dlist.start.prev.turn == n - 1:
-            reductions.std_rt_bracket(dlist, dlist.start.prev.prev, n)
-        elif dlist.start.turn == n - 1 and dlist.start.prev.turn == n - 2 and dlist.start.prev.prev.turn == n - 1:
-            reductions.std_rt_bracket(dlist, dlist.start.prev.prev.prev, n)
-        elif dlist.start.prev.turn == n - 1 and dlist.start.prev.prev.turn == n - 2 and dlist.start.prev.prev.prev.turn == n - 1:
-            reductions.std_rt_bracket(dlist, dlist.start.next, n)
-
-# O(l) time complexity.
-def canonical(dlist):
-    n = len(M)
-    # Input is a geodesic freely homotopic to c.
-    # The function returns a canonical geodesic freely homotopic to c.
-    if dlist.check_empty():
-        return 0
-    elif dlist.number_of_runs() > 4:
-        temp = dlist.start
-        while (dlist.number_of_runs() > 4 and (temp != dlist.start.prev or (temp == dlist.start.prev and temp.mark_2 == False))):
-            if temp.next.turn == n - 2 and temp.next.next.turn == n - 1 and temp.next.next.next.turn == n - 2:
-                reductions.rt_shift_1(dlist, temp, n)
-            elif temp.turn == n - 2 and temp.next.turn == n - 1 and temp.next.next.turn == n - 2:
-                reductions.rt_shift_1(dlist, temp.prev, n)
-            elif temp.turn == n - 1 and temp.next.turn == n - 2 and temp.prev.turn == n - 2:
-                reductions.rt_shift_1(dlist, temp.prev.prev, n)
-            elif temp.turn == n - 2 and temp.prev.turn == n - 1 and temp.prev.prev.turn == n - 2:
-                reductions.rt_shift_1(dlist, temp.prev.prev.prev, n)
-            elif temp.prev.turn == n - 2 and temp.prev.prev.turn == n - 1 and temp.prev.prev.prev.turn == n - 2:
-                reductions.rt_shift_1(dlist, temp.prev.prev.prev.prev, n)
-            
-            elif temp.next.turn == n - 1 and temp.next.next.turn == n - 2:
-                reductions.rt_shift_2(dlist, temp, n)
-            elif temp.turn == n - 1 and temp.next.turn == n - 2:
-                reductions.rt_shift_2(dlist, temp.prev, n)
-            elif temp.turn == n - 2 and temp.prev.turn == n - 1:
-                reductions.rt_shift_2(dlist, temp.prev.prev, n)
-            elif temp.prev.turn == n - 1 and temp.prev.prev.turn == n - 2:
-                reductions.rt_shift_2(dlist, temp.prev.prev.prev, n)
-
-            elif temp.next.turn == n - 2 and temp.next.next.turn == n - 1:
-                reductions.rt_shift_3(dlist, temp, n)
-            elif temp.turn == n - 2 and temp.next.turn == n - 1:
-                reductions.rt_shift_3(dlist, temp.prev, n)
-            elif temp.turn == n - 1 and temp.prev.turn == n - 2:
-                reductions.rt_shift_3(dlist, temp.prev.prev, n)
-            elif temp.prev.turn == n - 2 and temp.prev.prev.turn == n - 1:
-                reductions.rt_shift_3(dlist, temp.prev.prev.prev, n)
-            
-            else:
-                temp = temp.next
-                temp.mark_2 = True
-
-    elif dlist.number_of_runs() == 1:
-        if dlist.start.turn == n - 2:
-            dlist.start.turn = 2
-
-    elif dlist.number_of_runs() == 3:
-        if dlist.start.turn != n - 3 and dlist.start.next.turn == n - 1 and dlist.start.next.next.turn == n - 2:
-            reductions.rt_shift_5(dlist, dlist.start, n)
-        elif dlist.start.turn == n - 1 and dlist.start.next.turn == n - 2 and dlist.start.next.next.turn != n - 3:
-            reductions.rt_shift_5(dlist, dlist.start.prev, n)
-        elif dlist.start.turn == n - 2 and dlist.start.next.turn != n - 3 and dlist.start.prev.turn == n - 1:
-            reductions.rt_shift_5(dlist, dlist.start.prev.prev, n)
-        
-        elif dlist.start.turn != n - 3 and dlist.start.next.turn == n - 2 and dlist.start.next.next.turn == n - 1:
-            reductions.rt_shift_6(dlist, dlist.start, n)
-        elif dlist.start.turn == n - 2 and dlist.start.next.turn == n - 1 and dlist.start.next.next.turn != n - 3:
-            reductions.rt_shift_6(dlist, dlist.start.prev, n)
-        elif dlist.start.turn == n - 1 and dlist.start.next.turn != n - 3 and dlist.start.prev.turn == n - 2:
-            reductions.rt_shift_6(dlist, dlist.start.prev.prev, n)
-    
-    elif dlist.number_of_runs() == 4:
-        if dlist.start.turn != n - 3 and dlist.start.next.turn == n - 2 and dlist.start.next.next.turn == n - 1 and dlist.start.next.next.next.turn == n - 2:
-            reductions.rt_shift_4(dlist, dlist.start, n)
-        elif dlist.start.turn == n - 2 and dlist.start.next.turn == n - 1 and dlist.start.next.next.turn == n - 2 and dlist.start.next.next.next.turn != n - 3:
-            reductions.rt_shift_4(dlist, dlist.start.prev, n)
-        elif dlist.start.turn == n - 1 and dlist.start.next.turn == n - 2 and dlist.start.next.next.turn != n - 3 and dlist.start.prev.turn == n - 2:
-            reductions.rt_shift_4(dlist, dlist.start.prev.prev, n)
-        elif dlist.start.turn == n - 2 and dlist.start.next.turn != n - 3 and dlist.start.prev.turn == n - 1 and dlist.start.prev.prev.turn == n - 2:
-            reductions.rt_shift_4(dlist, dlist.start.next, n)
-
-        elif dlist.start.turn == n - 3 and dlist.start.next.turn == n - 2 and dlist.start.next.next.turn == n - 1 and dlist.start.next.next.next.turn == n - 2:
-            reductions.rt_shift_7(dlist, dlist.start, n)
-        elif dlist.start.turn == n - 2 and dlist.start.next.turn == n - 1 and dlist.start.next.next.turn == n - 2 and dlist.start.next.next.next.turn == n - 3:
-            reductions.rt_shift_7(dlist, dlist.start.prev, n)
-        elif dlist.start.turn == n - 1 and dlist.start.next.turn == n - 2 and dlist.start.next.next.turn == n - 3 and dlist.start.prev.turn == n - 2:
-            reductions.rt_shift_7(dlist, dlist.start.prev.prev, n)
-        elif dlist.start.turn == n - 2 and dlist.start.next.turn == n - 3 and dlist.start.prev.turn == n - 1 and dlist.start.prev.prev.turn == n - 2:
-            reductions.rt_shift_7(dlist, dlist.start.next, n)
 
 def invert(dlist):
     # Input is a combinatorial curve c.
@@ -378,13 +210,13 @@ def nbr(e1, e2, v):
 
 def isCLW(e_1, e_2, e_3, v):
     if v == 1:
-        E_3 = (e_3 + (len(M) - e_1)) % len(M)
-        E_2 = (e_2 + (len(M) - e_1)) % len(M)
+        E_3 = (e_3 + (len(M.matrix) - e_1)) % len(M.matrix)
+        E_2 = (e_2 + (len(M.matrix) - e_1)) % len(M.matrix)
         if E_2 > 0 and E_3 > E_2:
             return 1
     elif v == 0:
-        E_3 = (M.index_a[e_3] + (len(M) - M.index_a[e_1])) % len(M)
-        E_2 = (M.index_a[e_2] + (len(M) - M.index_a[e_1])) % len(M)
+        E_3 = (M.index_a[e_3] + (len(M.matrix) - M.index_a[e_1])) % len(M.matrix)
+        E_2 = (M.index_a[e_2] + (len(M.matrix) - M.index_a[e_1])) % len(M.matrix)
         if E_2 > 0 and E_3 > E_2:
             return 1
 
@@ -395,17 +227,17 @@ def isCCW(e_1, e_2, e_3, v):
 def Primitive_intersection(C, D):
     # Input is two primitive combinatorial curves x and y.
     # The function returns the intersection number of x and y.
-    canonical(D)
+    D.canonical(M)
     d = toEdge_sequence(D)
 
     C_inverse = invert(C)
-    canonical(C_inverse)
+    C_inverse.canonical(M)
     c_L_inverse = toEdge_sequence(C_inverse)
 
     C_L = invert(C_inverse) # C_inverse is now already canonical, we just need to invert and use it.
     c_L = toEdge_sequence(C_L)
 
-    canonical(C)
+    C.canonical(M)
     c_R = toEdge_sequence(C)
 
     # We create a grid of size (len(c_R) x len(d)). Operating on the grid gives us overall a O(l^2) time complexity.

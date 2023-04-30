@@ -1,3 +1,5 @@
+import reductions
+
 # Except for self.start.edge every other node.edge might just be garbage.
 # We need the self.start.edge to compute the geodesic from the turn sequence. 
 # We don't bother to update the edge of the other nodes, as they will make the running time of the algorithm O(l^2) instead of O(l).
@@ -6,13 +8,13 @@
 
 # Structure of a Node
 class Node:
-    def __init__(self, vertex, edge, turn, run_length, mark_1 = False, mark_2 = False):
+    def __init__(self, vertex, edge, turn, run_length):
         self.vertex = vertex # Vertex at the beginning of the run
         self.edge = edge # Edge into the run
         self.turn = turn
         self.run_length = run_length
-        self.mark_1 = mark_1 # mark_1 is for removing spurs and brackets to obtain a geodesic.
-        self.mark_2 = mark_2 # mark_2 is for elementary right shifts to obtain a canonical geodesic.
+        self.mark_1 = False # mark_1 is for removing spurs and brackets to obtain a geodesic.
+        self.mark_2 = False # mark_2 is for elementary right shifts to obtain a canonical geodesic.
         self.next = None
         self.prev = None
 	
@@ -49,13 +51,13 @@ class DoublyLinkedList:
     def insertEnd(self, edge, turn, run_length):
     # If the list is empty, create a single node circular and doubly linked list
         if (self.start == None):
-            new_node = Node(edge, turn, run_length)
+            new_node = Node(0, edge, turn, run_length)
             new_node.next = new_node.prev = new_node
             self.start = new_node
             return
 	 
         last = (self.start).prev # If list is not empty find last node
-        new_node = Node(edge, turn, run_length)
+        new_node = Node((last.vertex + last.run_length) % 2, edge, turn, run_length)
         new_node.next = self.start
         (self.start).prev = new_node
         new_node.prev = last
@@ -67,21 +69,11 @@ class DoublyLinkedList:
 
     def insertBegin(self, edge, turn, run_length):
         last = (self.start).prev
-        new_node = Node(edge, turn, run_length)
+        new_node = Node((last.vertex + last.run_length) % 2, edge, turn, run_length)
         new_node.next = self.start
         new_node.prev = last
         last.next = (self.start).prev = new_node
         self.start = new_node
-
-    # Function to insert node with value as value1.The new node is inserted after the node with value2
-    def insertAfter(self, node, edge, turn, run_length):
-        new_node = Node(edge, turn, run_length)
-
-        # insert new_node between temp and next.
-        new_node.next = node.next
-        new_node.prev = node
-        node.next.prev = new_node
-        node.next = new_node
 
     def deleteNode(self, node):
         edge = node.edge
@@ -102,6 +94,7 @@ class DoublyLinkedList:
             node.prev.next = node.next
             node.next.prev = node.prev        
         # If node to be deleted is not start node
+        # Need to update edge, vertex of next node.
         else:
             node.prev.next = node.next
             node.next.prev = node.prev
@@ -112,7 +105,7 @@ class DoublyLinkedList:
         else:
             self.deleteNode(node)
     
-    def change_turn(self, node, new_turn):
+    def change_turn_all(self, node, new_turn):
         node.turn = new_turn
         # Merge Operations
         if node.next.turn == new_turn:
@@ -121,20 +114,249 @@ class DoublyLinkedList:
         if node.prev.turn == new_turn:
             node.prev.run_length += node.run_length
             self.deleteNode(node)
+    
+    def change_turn_one_start(self, node, new_turn):
+        if node.run_length == 1:
+            node.turn = new_turn
+            # Merge Operations
+            if node.next.turn == new_turn:
+                node.run_length += node.next.run_length
+                self.deleteNode(node.next)
+            if node.prev.turn == new_turn:
+                node.prev.run_length += node.run_length
+                self.deleteNode(node)
+        else:
+            vertex = (node.vertex + node.run_length - 1) % 2
+            new_node = Node(vertex, node.edge, new_turn, 1)
+
+            # insert new_node between temp and next.
+            new_node.next = node.next
+            new_node.prev = node
+            node.next.prev = new_node
+            node.next = new_node
+
+            node.run_length -= 1
+    
+    def change_turn_one_end(self, node, new_turn):
+        if node.run_length == 1:
+            node.turn = new_turn
+            # Merge Operations
+            if node.next.turn == new_turn:
+                node.run_length += node.next.run_length
+                self.deleteNode(node.next)
+            if node.prev.turn == new_turn:
+                node.prev.run_length += node.run_length
+                self.deleteNode(node)
+        else:
+            new_node = Node(node.vertex, node.edge, new_turn, 1)
+
+            # insert new_node between temp and next.
+            new_node.next = node
+            new_node.prev = node.prev
+            node.prev.next = new_node
+            node.prev = new_node
+
+            node.run_length -= 1
+            if node.vertex == 0:
+                node.edge = (node.edge + node.turn) % len(self.nbr_a)
+            else:
+                node.edge = self.nbr_a[(self.index_a[node.edge] + node.turn) % len(self.nbr_a)]
+            node.vertex = (node.vertex + 1) % 2         
+  
+    # O(l) time complexity.
+    # Remember when we delete the start node from a circular doubly linked list, we update the start pointer as the next pointer.
+    def geodesic(self, M):
+        n = len(M.matrix)
+        # The function returns a reduced cycle freely homotopic to c.
+        if self.check_empty():
+            return 0
+        elif self.number_of_runs() > 5:
+            temp = self.start
+            while (self.number_of_runs() > 5 and (temp != self.start.prev or (temp == self.start.prev and temp.mark_1 == False))):
+                if temp.next.turn == 0:
+                    reductions.std_spur(self, temp)
+                elif temp.turn == 0:
+                    reductions.std_spur(self, temp.prev)
+                elif temp.prev.turn == 0:
+                    reductions.std_spur(self, temp.prev.prev)
+
+                elif temp.next.turn == 1 and temp.next.next.turn == 2 and temp.next.next.next.turn == 1:
+                    reductions.std_lt_bracket(self, temp, n)
+                elif temp.turn == 1 and temp.next.turn == 2 and temp.next.next.turn == 1:
+                    reductions.std_lt_bracket(self, temp.prev, n)
+                elif temp.prev.turn == 1 and temp.turn == 2 and temp.next.turn == 1:
+                    reductions.std_lt_bracket(self, temp.prev.prev, n)
+                elif temp.prev.prev.turn == 1 and temp.prev.turn == 2 and temp.turn == 1:
+                    reductions.std_lt_bracket(self, temp.prev.prev.prev, n)
+                elif temp.prev.prev.prev.turn == 1 and temp.prev.prev.turn == 2 and temp.prev.turn == 1:
+                    reductions.std_lt_bracket(self, temp.prev.prev.prev.prev, n)
+                
+                elif temp.next.turn == -1 and temp.next.next.turn == -2 and temp.next.next.next.turn == -1:
+                    reductions.std_rt_bracket(self, temp, n)
+                elif temp.turn == -1 and temp.next.turn == -2 and temp.next.next.turn == -1:
+                    reductions.std_rt_bracket(self, temp.prev, n)
+                elif temp.prev.turn == -1 and temp.turn == -2 and temp.next.turn == -1:
+                    reductions.std_rt_bracket(self, temp.prev.prev, n)
+                elif temp.prev.prev.turn == -1 and temp.prev.turn == -2 and temp.turn == -1:
+                    reductions.std_rt_bracket(self, temp.prev.prev.prev, n)
+                elif temp.prev.prev.prev.turn == -1 and temp.prev.prev.turn == -2 and temp.prev.turn == -1:
+                    reductions.std_rt_bracket(self, temp.prev.prev.prev.prev, n)
+
+                else:
+                    temp = temp.next
+                    temp.mark_1 = True
+
+        elif self.number_of_runs() == 2:
+            if self.start.turn == 0 and self.start.next.turn == 0:
+                reductions.near_cyclic_spur(self, self.start)
+
+            elif self.start.turn == 1 and self.start.next.turn == 2:
+                reductions.cyclic_lt_bracket(self, self.start, n)
+            elif self.start.turn == 2 and self.start.next.turn == 1:
+                reductions.cyclic_lt_bracket(self, self.start.next, n)
+
+            elif self.start.turn == -1 and self.start.next.turn == -2:
+                reductions.cyclic_rt_bracket(self, self.start, n)
+            elif self.start.turn == -2 and self.start.next.turn == -1:
+                reductions.cyclic_rt_bracket(self, self.start.next, n)
+
+        elif self.number_of_runs() == 4:
+            if self.start.next.turn == 1 and self.start.next.next.turn == 2 and self.start.next.next.next.turn == 1:
+                reductions.near_cyclic_lt_bracket(self, self.start, n)
+            elif self.start.turn== 1 and self.start.next.turn == 2 and self.start.next.next.turn == 1:
+                reductions.near_cyclic_lt_bracket(self, self.start.prev, n)
+            elif self.start.turn == 2 and self.start.next.turn == 1 and self.start.prev.turn == 1:
+                reductions.near_cyclic_lt_bracket(self, self.start.prev.prev, n)
+            elif self.start.turn == 1 and self.start.prev.turn == 2 and self.start.prev.prev.turn == 1:
+                reductions.near_cyclic_lt_bracket(self, self.start.next, n)
+
+            elif self.start.next.turn == -1 and self.start.next.next.turn == -2 and self.start.next.next.next.turn == -1:
+                reductions.near_cyclic_rt_bracket(self, self.start, n)
+            elif self.start.turn == -1 and self.start.next.turn == -2 and self.start.next.next.turn == -1:
+                reductions.near_cyclic_rt_bracket(self, self.start.prev, n)
+            elif self.start.turn == -2 and self.start.next.turn == -1 and self.start.prev.turn == -1:
+                reductions.near_cyclic_rt_bracket(self, self.start.prev.prev, n)
+            elif self.start.turn == -1 and self.start.prev.turn == -2 and self.start.prev.prev.turn == -1:
+                reductions.near_cyclic_rt_bracket(self, self.start.next, n)
+
+        elif self.number_of_runs() == 5:
+            if self.start.next.turn == 1 and self.start.next.next.turn == 2 and self.start.next.next.next.turn == 1:
+                reductions.std_lt_bracket(self, self.start, n)
+            elif self.start.turn == 1 and self.start.next.turn == 2 and self.start.next.next.turn == 1:
+                reductions.std_lt_bracket(self, self.start.prev, n)
+            elif self.start.turn == 2 and self.start.next.turn == 1 and self.start.prev.turn == 1:
+                reductions.std_lt_bracket(self, self.start.prev.prev, n)
+            elif self.start.turn == 1 and self.start.prev.turn == 2 and self.start.prev.prev.turn == 1:
+                reductions.std_lt_bracket(self, self.start.prev.prev.prev, n)
+            elif self.start.prev.turn == 1 and self.start.prev.prev.turn == 2 and self.start.prev.prev.prev.turn == 1:
+                reductions.std_lt_bracket(self, self.start.next, n)
+
+            elif self.start.next.turn == -1 and self.start.next.next.turn == -2 and self.start.next.next.next.turn == -1:
+                reductions.std_rt_bracket(self, self.start, n)
+            elif self.start.turn == -1 and self.start.next.turn == -2 and self.start.next.next.turn == -1:
+                reductions.std_rt_bracket(self, self.start.prev, n)
+            elif self.start.turn == -2 and self.start.next.turn == -1 and self.start.prev.turn == -1:
+                reductions.std_rt_bracket(self, self.start.prev.prev, n)
+            elif self.start.turn == -1 and self.start.prev.turn == -2 and self.start.prev.prev.turn == -1:
+                reductions.std_rt_bracket(self, self.start.prev.prev.prev, n)
+            elif self.start.prev.turn == -1 and self.start.prev.prev.turn == -2 and self.start.prev.prev.prev.turn == -1:
+                reductions.std_rt_bracket(self, self.start.next, n)
+
+    # O(l) time complexity.
+    def canonical(self, M):
+        n = len(M.matrix)
+        # Input is a geodesic freely homotopic to c.
+        # The function returns a canonical geodesic freely homotopic to c.
+        if self.check_empty():
+            return 0
+        elif self.number_of_runs() > 4:
+            temp = self.start
+            while (self.number_of_runs() > 4 and (temp != self.start.prev or (temp == self.start.prev and temp.mark_2 == False))):
+                if temp.next.turn == -2 and temp.next.next.turn == -1 and temp.next.next.next.turn == -2:
+                    reductions.rt_shift_1(self, temp, n)
+                elif temp.turn == -2 and temp.next.turn == -1 and temp.next.next.turn == -2:
+                    reductions.rt_shift_1(self, temp.prev, n)
+                elif temp.turn == -1 and temp.next.turn == -2 and temp.prev.turn == -2:
+                    reductions.rt_shift_1(self, temp.prev.prev, n)
+                elif temp.turn == -2 and temp.prev.turn == -1 and temp.prev.prev.turn == -2:
+                    reductions.rt_shift_1(self, temp.prev.prev.prev, n)
+                elif temp.prev.turn == -2 and temp.prev.prev.turn == -1 and temp.prev.prev.prev.turn == -2:
+                    reductions.rt_shift_1(self, temp.prev.prev.prev.prev, n)
+                
+                elif temp.next.turn == -1 and temp.next.next.turn == -2:
+                    reductions.rt_shift_2(self, temp, n)
+                elif temp.turn == -1 and temp.next.turn == -2:
+                    reductions.rt_shift_2(self, temp.prev, n)
+                elif temp.turn == -2 and temp.prev.turn == -1:
+                    reductions.rt_shift_2(self, temp.prev.prev, n)
+                elif temp.prev.turn == -1 and temp.prev.prev.turn == -2:
+                    reductions.rt_shift_2(self, temp.prev.prev.prev, n)
+
+                elif temp.next.turn == -2 and temp.next.next.turn == -1:
+                    reductions.rt_shift_3(self, temp, n)
+                elif temp.turn == -2 and temp.next.turn == -1:
+                    reductions.rt_shift_3(self, temp.prev, n)
+                elif temp.turn == -1 and temp.prev.turn == -2:
+                    reductions.rt_shift_3(self, temp.prev.prev, n)
+                elif temp.prev.turn == -2 and temp.prev.prev.turn == -1:
+                    reductions.rt_shift_3(self, temp.prev.prev.prev, n)
+                
+                else:
+                    temp = temp.next
+                    temp.mark_2 = True
+
+        elif self.number_of_runs() == 1:
+            if self.start.turn == -2:
+                self.start.turn = 2
+
+        elif self.number_of_runs() == 3:
+            if self.start.turn != -3 and self.start.next.turn == -1 and self.start.next.next.turn == -2:
+                reductions.rt_shift_5(self, self.start, n)
+            elif self.start.turn == -1 and self.start.next.turn == -2 and self.start.next.next.turn != -3:
+                reductions.rt_shift_5(self, self.start.prev, n)
+            elif self.start.turn == -2 and self.start.next.turn != -3 and self.start.prev.turn == -1:
+                reductions.rt_shift_5(self, self.start.prev.prev, n)
+            
+            elif self.start.turn != -3 and self.start.next.turn == -2 and self.start.next.next.turn == -1:
+                reductions.rt_shift_6(self, self.start, n)
+            elif self.start.turn == -2 and self.start.next.turn == -1 and self.start.next.next.turn != -3:
+                reductions.rt_shift_6(self, self.start.prev, n)
+            elif self.start.turn == -1 and self.start.next.turn != -3 and self.start.prev.turn == -2:
+                reductions.rt_shift_6(self, self.start.prev.prev, n)
+        
+        elif self.number_of_runs() == 4:
+            if self.start.turn != -3 and self.start.next.turn == -2 and self.start.next.next.turn == -1 and self.start.next.next.next.turn == -2:
+                reductions.rt_shift_4(self, self.start, n)
+            elif self.start.turn == -2 and self.start.next.turn == -1 and self.start.next.next.turn == -2 and self.start.next.next.next.turn != -3:
+                reductions.rt_shift_4(self, self.start.prev, n)
+            elif self.start.turn == -1 and self.start.next.turn == -2 and self.start.next.next.turn != -3 and self.start.prev.turn == -2:
+                reductions.rt_shift_4(self, self.start.prev.prev, n)
+            elif self.start.turn == -2 and self.start.next.turn != -3 and self.start.prev.turn == -1 and self.start.prev.prev.turn == -2:
+                reductions.rt_shift_4(self, self.start.next, n)
+
+            elif self.start.turn == -3 and self.start.next.turn == -2 and self.start.next.next.turn == -1 and self.start.next.next.next.turn == -2:
+                reductions.rt_shift_7(self, self.start, n)
+            elif self.start.turn == -2 and self.start.next.turn == -1 and self.start.next.next.turn == -2 and self.start.next.next.next.turn == -3:
+                reductions.rt_shift_7(self, self.start.prev, n)
+            elif self.start.turn == -1 and self.start.next.turn == -2 and self.start.next.next.turn == -3 and self.start.prev.turn == -2:
+                reductions.rt_shift_7(self, self.start.prev.prev, n)
+            elif self.start.turn == -2 and self.start.next.turn == -3 and self.start.prev.turn == -1 and self.start.prev.prev.turn == -2:
+                reductions.rt_shift_7(self, self.start.next, n)
 
     def display(self):
         temp = self.start
 
         print("Traversal in forward direction:")
         while (temp.next != self.start):
-            print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
+            print('(' + str(temp.vertex) + ',' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
             temp = temp.next
-        print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
+        print('(' + str(temp.vertex) + ',' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
 
-        print("Traversal in reverse direction:")
+        print("\nTraversal in reverse direction:")
         last = self.start.prev
         temp = last
         while (temp.prev != last):
-            print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
+            print('(' + str(temp.vertex) + ',' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
             temp = temp.prev
-        print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
+        print('(' + str(temp.vertex) + ',' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
+        print("\n")

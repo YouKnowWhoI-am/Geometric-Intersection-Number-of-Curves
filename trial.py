@@ -1,7 +1,8 @@
 import sys
-#for i in range(8): print(i)
+import DList
+import reductions
+import Sys_of_Quads
 
-# Check if the input has duplicates.
 '''
 seen = set()
 for x in M:
@@ -86,165 +87,147 @@ print("Hello World\n")
 print("Hello World2\n")
 '''
 
-# index_a = [0] * len(M) # To ensure the function turn, defined later, runs in O(1) time, we need to store the index of each edge in the cycle.
-# nbr_a = [0] * len(M) #nbr_z is the list {0, 1, ..., len(M)-1} in the order of the edges in the cycle.
-# spoke = [set() for j in range(len(M))] # spoke[i] stores the unique set of 4 neighbours of the edge i. We are not worried about the order.
+Matrix = list(tuple(map(int, input().split())) for r in range(4 * int(input('Enter genus: ')))) 
+M = Sys_of_Quads.Manifold(Matrix) 
+M.check_valid()
+M.Sys_of_Quads() 
+print(M.faces)
+print(M.spoke)
+print(M.index_a)
+print(M.nbr_a)
 
-import main
-# Need to break this into two files, to avoid circular import.
+print("Enter first Combinatorial Curve:")
+c1 = list(int(input()) for r in range(int(input('Enter length: '))))
+# print("Enter second Combinatorial Curve:")
+# c2 = list(int(input()) for r in range(int(input('Enter length: '))))
+# print("Combinatorial Curve 1: ", c1)
 
-index_a = main.index_a
-nbr_a = main.nbr_a
-
-# Except for self.start.edge every other node.edge might just be garbage.
-# We need the self.start.edge to compute the geodesic from the turn sequence. 
-# We don't bother to update the edge of the other nodes, as they will make the running time of the algorithm O(l^2) instead of O(l).
-# It also makes the code much simpler.
-# Same goes about the vertex of the nodes. We only need the vertex of the self.start node to compute the geodesic from the turn sequence.
-
-# Structure of a Node
-class Node:
-    def __init__(self, vertex, edge, turn, run_length, mark_1 = False, mark_2 = False):
-        self.vertex = vertex # Vertex at the beginning of the run
-        self.edge = edge # Edge into the run
-        self.turn = turn
-        self.run_length = run_length
-        self.mark_1 = mark_1 # mark_1 is for removing spurs and brackets to obtain a geodesic.
-        self.mark_2 = mark_2 # mark_2 is for elementary right shifts to obtain a canonical geodesic.
-        self.next = None
-        self.prev = None
-	
-class DoublyLinkedList:
-    def __init__(self):
-        self.start = None
-
-    def check_empty(self):
-        if self.start == None:
-            return True
+# O(1) time complexity.
+def turn(e1, v, e2):
+    # e1 and e2 are the edges that are incident to v, and e1 is the edge that is traversed before e2.
+    # The function returns the turn from e1 to e2 at v.
+    if e1 == e2:
+        return 0
+    if v == 1: # v is the vertex z
+        if e2 - e1 <= len(M.matrix) // 2 and e2 - e1 >= -len(M.matrix) // 2:
+            return e2 - e1
+        elif e2 - e1 > len(M.matrix) // 2:
+            return e2 - e1 - len(M.matrix)
         else:
-            return False
-        
-    def number_of_runs(self):
-        temp = self.start
-        total = 0
-        while (temp.next != self.start):
-            total += 1
-            temp = temp.next
-        total += 1
-        return total
-
-    def total_length(self):
-        temp = self.start
-        total = 0
-        while (temp.next != self.start):
-            total += temp.run_length
-            temp = temp.next
-        total += temp.run_length
-        return total
-    
-    def insertEnd(self, edge, turn, run_length):
-    # If the list is empty, create a single node circular and doubly linked list
-        if (self.start == None):
-            new_node = Node(edge, turn, run_length)
-            new_node.next = new_node.prev = new_node
-            self.start = new_node
-            return
-	 
-        last = (self.start).prev # If list is not empty find last node
-        new_node = Node(edge, turn, run_length)
-        new_node.next = self.start
-        (self.start).prev = new_node
-        new_node.prev = last
-        last.next = new_node
-    
-    def updateEnd(self):
-        last = (self.start).prev
-        last.run_length += 1
-
-    def insertBegin(self, edge, turn, run_length):
-        last = (self.start).prev
-        new_node = Node(edge, turn, run_length)
-        new_node.next = self.start
-        new_node.prev = last
-        last.next = (self.start).prev = new_node
-        self.start = new_node
-
-    # Function to insert node with value as value1.The new node is inserted after the node with value2
-    def insertAfter(self, node, edge, turn, run_length):
-        new_node = Node(edge, turn, run_length)
-
-        # insert new_node between temp and next.
-        new_node.next = node.next
-        new_node.prev = node
-        node.next.prev = new_node
-        node.next = new_node
-
-    def deleteNode(self, node):
-        edge = node.edge
-        if (self.start == None or node == None):
-            return
-        # If node to be deleted is start node
-        if (self.start == node):
-            self.start = node.next 
-
-            for i in range(node.run_length):
-                if i % 2 == 1:
-                    edge = (edge + node.turn) % len(nbr_a) # Note len(nbr_a) = len(nbr_z) = len(M)
-                else:
-                    edge = nbr_a[(index_a[edge] + node.turn) % len(nbr_a)]
-            self.start.edge = edge
-            self.start.vertex = (self.start.vertex + (node.run_length % 2)) % 2 
-
-            node.prev.next = node.next
-            node.next.prev = node.prev        
-        # If node to be deleted is not start node
+            return e2 - e1 + len(M.matrix)
+    else: # v is the vertex a
+        if M.index_a[e2] - M.index_a[e1] <= len(M.matrix) // 2 and M.index_a[e2] - M.index_a[e1] >= -len(M.matrix) // 2:
+            return M.index_a[e2] - M.index_a[e1]
+        elif M.index_a[e2] - M.index_a[e1] > len(M.matrix) // 2:
+            return M.index_a[e2] - M.index_a[e1] - len(M.matrix)
         else:
-            node.prev.next = node.next
-            node.next.prev = node.prev
+            return M.index_a[e2] - M.index_a[e1] + len(M.matrix)
 
-    def decrease_run_length_by(self, node, value):
-        if node.run_length > value:
-            node.run_length -= value
-        else:
-            self.deleteNode(node)
-    
-    def change_turn(self, node, new_turn):
-        node.turn = new_turn
-        # Merge Operations
-        if node.next.turn == new_turn:
-            node.run_length += node.next.run_length
-            self.deleteNode(node.next)
-        if node.prev.turn == new_turn:
-            node.prev.run_length += node.run_length
-            self.deleteNode(node)
+# O(l) time complexity.
+def turn_sequence(c):
+    # c is a combinatorial curve
+    # The function returns the turn sequence of c.
+    turn_seq = [0] * len(c)
+    for i in range(len(c)):
+        if i % 2 == 0 and i != 0:
+            turn_seq[i] = turn(c[i - 1], 0, c[i])
+        elif i % 2 == 0 and i == 0:
+            turn_seq[i] = turn(c[len(c) - 1], 0, c[i])
+        elif i % 2 == 1:
+            turn_seq[i] = turn(c[i - 1], 1, c[i])
+    return turn_seq
 
-    def display(self):
+print(turn_sequence(c1))
+
+def run_length_encoding(c, turn_seq):
+    # turn_seq is a turn sequence
+    # The function returns the run-length encoding of turn_seq which is a circular doubly linked list.
+    dlist = DList.DoublyLinkedList(M.index_a, M.nbr_a)
+    for i in range(len(turn_seq)):
+        if i == 0:
+            dlist.insertEnd(c[i], turn_seq[i], 1)
+        elif turn_seq[i] != turn_seq[i - 1]:
+            dlist.insertEnd(c[i], turn_seq[i], 1)
+        elif turn_seq[i] == turn_seq[i - 1]:
+            dlist.updateEnd()
+    return dlist
+
+dlist = run_length_encoding(c1, turn_sequence(c1))
+dlist.display()
+
+# def change(dlist):
+#     dlist.start.turn = 12
+# change(dlist)
+# dlist.display()
+
+def geodesic(self, M):
+    n = len(M.matrix)
+    # The function returns a reduced cycle freely homotopic to c.
+    if self.check_empty():
+        return 0
+    elif self.number_of_runs() > 5:
         temp = self.start
+        while (self.number_of_runs() > 5 and (temp != self.start.prev or (temp == self.start.prev and temp.mark_1 == False))):
+            if temp.next.turn == 0:
+                reductions.std_spur(self, temp)
+            elif temp.turn == 0:
+                reductions.std_spur(self, temp.prev)
+            elif temp.prev.turn == 0:
+                reductions.std_spur(self, temp.prev.prev)
 
-        print("Traversal in forward direction:")
-        while (temp.next != self.start):
-            print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
-            temp = temp.next
-        print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
+            elif temp.next.turn == 1 and temp.next.next.turn == 2 and temp.next.next.next.turn == 1:
+                reductions.std_lt_bracket(self, temp, n)
+            elif temp.turn == 1 and temp.next.turn == 2 and temp.next.next.turn == 1:
+                reductions.std_lt_bracket(self, temp.prev, n)
+            elif temp.prev.turn == 1 and temp.turn == 2 and temp.next.turn == 1:
+                reductions.std_lt_bracket(self, temp.prev.prev, n)
+            elif temp.prev.prev.turn == 1 and temp.prev.turn == 2 and temp.turn == 1:
+                reductions.std_lt_bracket(self, temp.prev.prev.prev, n)
+            elif temp.prev.prev.prev.turn == 1 and temp.prev.prev.turn == 2 and temp.prev.turn == 1:
+                reductions.std_lt_bracket(self, temp.prev.prev.prev.prev, n)
+            
+            elif temp.next.turn == -1 and temp.next.next.turn == -2 and temp.next.next.next.turn == -1:
+                reductions.std_rt_bracket(self, temp, n)
+            elif temp.turn == -1 and temp.next.turn == -2 and temp.next.next.turn == -1:
+                reductions.std_rt_bracket(self, temp.prev, n)
+            elif temp.prev.turn == -1 and temp.turn == -2 and temp.next.turn == -1:
+                reductions.std_rt_bracket(self, temp.prev.prev, n)
+            elif temp.prev.prev.turn == -1 and temp.prev.turn == -2 and temp.turn == -1:
+                reductions.std_rt_bracket(self, temp.prev.prev.prev, n)
+            elif temp.prev.prev.prev.turn == -1 and temp.prev.prev.turn == -2 and temp.prev.turn == -1:
+                reductions.std_rt_bracket(self, temp.prev.prev.prev.prev, n)
 
-        print("Traversal in reverse direction:")
-        last = self.start.prev
-        temp = last
-        while (temp.prev != last):
-            print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
-            temp = temp.prev
-        print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
+            else:
+                temp = temp.next
+                temp.mark_1 = True
 
+reductions.std_rt_bracket(dlist, dlist.start.next, 20)
+# geodesic(dlist, M)
+dlist.display()
 
-if __name__ == '__main__':
-	dllist = DoublyLinkedList()
-	dllist.insert_at_tail(1)
-	dllist.insert_at_tail(2)
-	dllist.insert_at_tail(3)
-	dllist.insert_at_tail(4)
-	dllist.insert_at_tail(5)
-	print("After insertion at tail: ")
-	dllist.display()
-	dllist.insert_at_head(0)
-	print("\nAfter insertion at head: ")
-	dllist.display()
+# def toEdge_sequence(dlist):
+#     # dlist is the run length encoding of a cycle c.
+#     # The function returns the edge sequence of c.
+#     edge_seq = [0] * (dlist.total_length() + 1)
+#     temp = dlist.start
+#     edge_seq[0] = temp.edge
+#     edge_seq[dlist.total_length()] = temp.vertex # The parity of the first vertex.
+#     counter = 1
+#     i = 1
+#     while i < dlist.total_length():
+#         while counter < temp.run_length:
+#             if (temp.vertex + counter) % 2 == 0:
+#                 edge_seq[i] = edge_seq[i - 1] + temp.turn
+#             else:
+#                 edge_seq[i] = M.nbr_a[M.index_a[edge_seq[i - 1]] + temp.turn]
+#             counter += 1
+#             i += 1
+#         temp = temp.next
+#         counter = 0
+#         i += 1
+#     return edge_seq
+
+# print(toEdge_sequence(dlist))
+
+# dlist.geodesic(M)
+# dlist.display()

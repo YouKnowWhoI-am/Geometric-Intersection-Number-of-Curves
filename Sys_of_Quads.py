@@ -3,6 +3,10 @@ import sys
 class Manifold:
     def __init__(self, Matrix):
         self.matrix = Matrix
+        self.faces = [[0 for i in range(4)] for j in range(int((len(self.matrix)/2)))] # 2D list of self.faces 
+        self.index_a = [0] * len(self.matrix) # To ensure the function turn, defined later, runs in O(1) time, we need to store the index of each edge in the cycle.
+        self.nbr_a = [0] * len(self.matrix) #nbr_z is the list {0, 1, ..., len(M)-1} in the order of the edges in the cycle.
+        self.spoke = [set() for j in range(len(self.matrix))] # spoke[i] stores the unique set of 4 neighbours of the edge i. We are not worried about the order.
 
     # O(n) time complexity.
     def check_valid(self):
@@ -26,7 +30,6 @@ class Manifold:
 
     # O(n) time complexity.
     def Sys_of_Quads(self):
-        self.faces = [[0 for i in range(4)] for j in range(int((len(self.matrix)/2)))] # 2D list of self.faces
         count = [0] * int(len(self.matrix)/2)
         for i in range(len(self.matrix)):
             if count[self.matrix[i][1]-1] == 0: #if i'th edge has not occured yet
@@ -54,10 +57,6 @@ class Manifold:
                         self.faces[self.matrix[i][1]-1][2] = (i + 1) % len(self.matrix)
                         self.faces[self.matrix[i][1]-1][3] = i
 
-        self.index_a = [0] * len(self.matrix) # To ensure the function turn, defined later, runs in O(1) time, we need to store the index of each edge in the cycle.
-        self.nbr_a = [0] * len(self.matrix) #nbr_z is the list {0, 1, ..., len(M)-1} in the order of the edges in the cycle.
-        self.spoke = [set() for j in range(len(self.matrix))] # spoke[i] stores the unique set of 4 neighbours of the edge i. We are not worried about the order.
-
         for i in range(len(self.matrix)):
             if i != 0:
                 self.nbr_a[i] = self.faces[f - 1][3 - l]
@@ -75,7 +74,7 @@ class Manifold:
         for i in range(len(self.matrix)):
             self.index_a[i] = self.nbr_a.index(i)
 
-        for i in range(len(self.matrix)):
+        for i in range(len(self.matrix) // 2):
             for j in range(4):
                 if j == 0:
                     self.spoke[self.faces[i][j]].add(self.faces[i][1])
