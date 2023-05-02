@@ -121,26 +121,34 @@ def run_length_encoding(c, turn_seq):
             dlist.updateEnd()
     return dlist
 
+def toTurn_sequence(dlist):
+    # dlist is the run length encoding of a cycle c.
+    # The function returns the turn sequence of c.
+    turn_seq = [0] * dlist.total_length()
+    temp = dlist.start
+    counter = 0
+    while temp.next != dlist.start:
+        for i in range(temp.run_length):
+            turn_seq[counter] = temp.turn
+            counter += 1
+        temp = temp.next
+    for i in range(temp.run_length):
+        turn_seq[counter] = temp.turn
+        counter += 1
+    return turn_seq
+
 def toEdge_sequence(dlist):
     # dlist is the run length encoding of a cycle c.
     # The function returns the edge sequence of c.
-    edge_seq = [0] * (dlist.total_length() + 1)
-    temp = dlist.start
-    edge_seq[0] = temp.edge
-    edge_seq[dlist.total_length()] = temp.vertex # The parity of the first vertex.
-    counter = 1
-    i = 1
-    while i < dlist.total_length():
-        while counter < temp.run_length:
-            if (temp.vertex + counter) % 2 == 0:
-                edge_seq[i] = edge_seq[i - 1] + temp.turn
-            else:
-                edge_seq[i] = M.nbr_a[M.index_a[edge_seq[i - 1]] + temp.turn]
-            counter += 1
-            i += 1
-        temp = temp.next
-        counter = 0
-        i += 1
+    edge_seq = [0] * (dlist.total_length())
+    turn_seq = toTurn_sequence(dlist)
+    edge_seq[0] = dlist.start_edge
+    # edge_seq[dlist.total_length()] = dlist.start_vertex # The parity of the first vertex.
+    for i in range(1, dlist.total_length()):
+        if i % 2 == 1:
+            edge_seq[i] = (edge_seq[i - 1] + turn_seq[i]) % len(M.matrix)
+        else:
+            edge_seq[i] = M.nbr_a[(M.index_a[edge_seq[i - 1]] + turn_seq[i]) % len(M.matrix)]
     return edge_seq
 
 # O(l) time complexity.
@@ -155,47 +163,55 @@ def isPrimitive(c):
 def invert(dlist):
     # Input is a combinatorial curve c.
     # The function returns c^{-1}.
-    dlist_inverse = DList.DoublyLinkedList(M.index_a, M.nbr_a)
+    if dlist.start_vertex == 0:
+        if dlist.start_edge - dlist.start.turn < 0:
+            edge = dlist.start_edge - dlist.start.turn + len(M.matrix)
+        else:
+            edge = dlist.start_edge - dlist.start.turn
+    else:
+        if M.index_a[dlist.start_edge] - dlist.start.turn < 0:
+            edge = M.nbr_a[M.index_a[dlist.start_edge] - dlist.start.turn + len(M.matrix)]
+        else:
+            edge = M.nbr_a[M.index_a[dlist.start_vertex] - dlist.start.turn]
+    dlist_inverse = DList.DoublyLinkedList(M.index_a, M.nbr_a, edge, dlist.start_vertex)
     temp = dlist.start
     while (temp.prev != dlist.start):
-        dlist_inverse.insertEnd(temp.edge, temp.turn, temp.run_length)
+        dlist_inverse.insertEnd(edge, temp.turn, temp.run_length)
         temp = temp.prev
-    dlist_inverse.insertEnd(temp.edge, temp.turn, temp.run_length)
+    dlist_inverse.insertEnd(edge, temp.turn, temp.run_length)
     return dlist_inverse
 
+
 def helper(match, k, l, length, D, c, d):
-    while k < len(c) and l < len(d):
-        if k != 0 or l != len(d) - 1: # We haven't reached the top right corner of the grid.
-            if match[k][l] != 0: # We found a match.
-                length += 1 # We increase the length of the double path.
-                if k == len(c) - 1 or l == len(d) - 1: # We reached the top or the right side of the grid.
-                    D.append([k - length, l - length, length]) # We append the first vertex pair of double path of length 'length'.
-                    if k == len(c) - 1: # We reached the right side of the grid.
-                        k = k - l - 1 
-                        l = 0
-                    else: # We reached the top of the grid.
-                        l = l - k - 1
-                        k = 0
-                    # move to the next right slash diagonal.
-                else: # We haven't reached the top or the right side of the grid.
-                    k += 1 
-                    l += 1
-                    # We move to the next vertex pair on the diagonal.
-            else: # We didn't find a match.
-                if length != 0: # Double path of length 'length' ended.
-                    D.append([k - length, l - length, length])
-                length = 0
+    for i in range(len(c) * len(d)): # We haven't reached the top right corner of the grid.
+        if match[k][l] != 0: # We found a match.
+            length += 1 # We increase the length of the double path.
+            if k == len(c) - 1 or l == len(d) - 1: # We reached the top or the right side of the grid.
+                D.append([k - length, l - length, length]) # We append the first vertex pair of double path of length 'length'.
                 if k == len(c) - 1: # We reached the right side of the grid.
-                    k = k - l - 1
+                    k = k - l - 1 
                     l = 0
-                elif l == len(d) - 1: # We reached the top of the grid.
+                else: # We reached the top of the grid.
                     l = l - k - 1
                     k = 0
-                else: # We haven't reached the top or the right side of the grid.
-                    k += 1
-                    l += 1
-        else: # k == 0 and l == len(d) - 1 
-            break # We finished scanning the grid and found all the double paths.
+                # move to the next right slash diagonal.
+            else: # We haven't reached the top or the right side of the grid.
+                k += 1 
+                l += 1
+                # We move to the next vertex pair on the diagonal.
+        else: # We didn't find a match.
+            if length != 0: # Double path of length 'length' ended.
+                D.append([k - length, l - length, length])
+            length = 0
+            if k == len(c) - 1: # We reached the right side of the grid.
+                k = k - l - 1
+                l = 0
+            elif l == len(d) - 1: # We reached the top of the grid.
+                l = l - k - 1
+                k = 0
+            else: # We haven't reached the top or the right side of the grid.
+                k += 1
+                l += 1
 
 def nbr(e1, e2, v):
     if v == 1:
@@ -206,7 +222,6 @@ def nbr(e1, e2, v):
             return 1    
     else:
         return 0
-
 
 def isCLW(e_1, e_2, e_3, v):
     if v == 1:
@@ -247,15 +262,15 @@ def Primitive_intersection(C, D):
     # We fill the grid if there is a match of edges as well as the parity of the vertices between the two curves.
     # match[i][j] = 1 if there is a match of edges and the parity of the vertices is 0.
     # match[i][j] = 2 if there is a match of edges and the parity of the vertices is 1.
-    for i in range(len(c_R) - 1):
-        for j in range(len(d) - 1):
-            if c_R[i] == d[j] and (c_R[len(c_R)] + i % 2) % 2 == (d[len(d)] + j % 2) % 2: # We check if there is a match of edges and the parity of the vertices is the same.
-                match[i][j] = 1 + ((c_R[len(c_R)] + i % 2) % 2) 
+    for i in range(len(c_R)):
+        for j in range(len(d)):
+            if c_R[i] == d[j] and (C.start_vertex + i % 2) % 2 == (D.start_vertex + j % 2) % 2: # We check if there is a match of edges and the parity of the vertices is the same.
+                match[i][j] = 1 + ((C.start_vertex + i % 2) % 2) 
 
-    for i in range(len(c_L_inverse) - 1):
-        for j in range(len(d) - 1):
-            if c_L_inverse[i] == d[j] and (c_L_inverse[len(c_L_inverse)] + i % 2) % 2 == (d[len(d)] + j % 2) % 2: # We check if there is a match of edges and the parity of the vertices is the same.
-                match_2[i][j] = 1 + ((c_L_inverse[len(c_L_inverse)] + i % 2) % 2)
+    for i in range(len(c_L_inverse)):
+        for j in range(len(d)):
+            if c_L_inverse[i] == d[j] and (C_inverse.start_vertex + i % 2) % 2 == (D.start_vertex + j % 2) % 2: # We check if there is a match of edges and the parity of the vertices is the same.
+                match_2[i][j] = 1 + ((C_inverse.start_vertex + i % 2) % 2)
     
     k = len(c_R) - 1 # Counter for the rows of the grid, numbering the edges of c_R.
     l = 0 # Counter for the columns of the grid, numbering the edges of d.
@@ -294,22 +309,22 @@ def Primitive_intersection(C, D):
                 d_plus += 1 
 
     # To update d_0.
-    for i in range(len(c_R) - 1):
-        for j in range(len(d) - 1):
+    for i in range(len(c_R)):
+        for j in range(len(d)):
 
             # Recall, in the last entry of a curve we store the parity of the starting vertex.
-            ccw = (isCCW(c_R[i - 1], d[j - 1], c_R[i], (d(len(d)) + j % 2) % 2) and isCCW(d[j - 1], c_R[i], d[j], (d(len(d)) + j % 2) % 2))
-            clw = (isCLW(c_R[i - 1], d[j - 1], c_R[i], (d(len(d)) + j % 2) % 2) and isCLW(d[j - 1], c_R[i], d[j], (d(len(d)) + j % 2) % 2))
+            ccw = (isCCW(c_R[i - 1], d[j - 1], c_R[i], (D.start_vertex + j % 2) % 2) and isCCW(d[j - 1], c_R[i], d[j], (D.start_vertex + j % 2) % 2))
+            clw = (isCLW(c_R[i - 1], d[j - 1], c_R[i], (D.start_vertex + j % 2) % 2) and isCLW(d[j - 1], c_R[i], d[j], (D.start_vertex + j % 2) % 2))
             # We need to check whether 4 edges are CCW or CLW, hence I broke it up into two cases of 3 edges.
 
-            if c_R(len(c_R)) == d(len(d)): # Starting vertex has same parity.
+            if C.start_vertex == D.start_vertex: # Starting vertex has same parity.
                 
                 # (i + j) % 2 == 0 ensures i, j have the same parity, given that the starting vertex has the same parity.
                 if (i + j) % 2 == 0 and (ccw or clw): # (i, j) is a crossing double point of c_R and d.
-                    if (i + c_L[len(c_L)]) % 2 == 0:
+                    if (i + C_L.start_vertex) % 2 == 0:
                         if (nbr(c_L[i], c_R[i], 0) and c_L[i - 1] == c_R[i - 1] and d[j] == c_L[i]) or (nbr(c_L[i - 1], c_R[i - 1], 0) and c_L[i] == c_R[i] and d[j - 1] == c_L[i - 1]):
                             d_0 += 1
-                    elif (i + c_L[len(c_L)]) % 2 == 1:
+                    elif (i + C_L.start_vertex) % 2 == 1:
                         if (nbr(c_L[i], c_R[i], 1) and c_L[i - 1] == c_R[i - 1] and d[j] == c_L[i]) or (nbr(c_L[i - 1], c_R[i - 1], 1) and c_L[i] == c_R[i] and d[j - 1] == c_L[i - 1]):
                             d_0 += 1
                     # nbr(c_L[i], c_R[i], 0) and c_L[i - 1] == c_R[i - 1] checks if the two boundaries of \Delta concide AT \Delta_L[i] = \Delta_R[i].
@@ -331,10 +346,10 @@ def Primitive_intersection(C, D):
                 
                 # (i + j) % 2 == 1 ensures i, j have same parity, given that the starting vertex has different parity.
                 if (i + j) % 2 == 1 and (ccw or clw): # (i, j) is a crossing double point of c_R and d.
-                    if (i + c_L[len(c_L)]) % 2 == 0:
+                    if (i + C_L.start_vertex) % 2 == 0:
                         if (nbr(c_L[i], c_R[i], 0) and c_L[i - 1] == c_R[i - 1] and d[j] == c_L[i]) or (nbr(c_L[i - 1], c_R[i - 1], 0) and c_L[i] == c_R[i] and d[j - 1] == c_L[i - 1]):
                             d_0 += 1
-                    elif (i + c_L[len(c_L)]) % 2 == 1:
+                    elif (i + C_L.start_vertex) % 2 == 1:
                         if (nbr(c_L[i], c_R[i], 1) and c_L[i - 1] == c_R[i - 1] and d[j] == c_L[i]) or (nbr(c_L[i - 1], c_R[i - 1], 1) and c_L[i] == c_R[i] and d[j - 1] == c_L[i - 1]):
                             d_0 += 1
                     # nbr(c_L[i], c_R[i], 0) and c_L[i - 1] == c_R[i - 1] checks if the two boundaries of \Delta concide AT \Delta_L[i] = \Delta_R[i].
@@ -355,27 +370,28 @@ def Primitive_intersection(C, D):
     # To update d_minus.
 
     #First we count the number of crossing double points of c_L_inverse and d, satisfying the desired conditions.
-    for i in range(len(c_L_inverse) - 1):
-        for j in range(len(d) - 1):
+    L = len(c_L_inverse)
+    for i in range(len(c_L_inverse)):
+        for j in range(len(d)):
 
             n1 = 0
             n2 = 0
 
             # Recall, in the last entry of a curve we store the parity of the starting vertex.
-            ccw = (isCCW(c_L_inverse[i - 1], d[j - 1], c_L_inverse[i], (d(len(d)) + j % 2) % 2) and isCCW(d[j - 1], c_L_inverse[i], d[j], (d(len(d)) + j % 2) % 2))
-            clw = (isCLW(c_L_inverse[i - 1], d[j - 1], c_L_inverse[i], (d(len(d)) + j % 2) % 2) and isCLW(d[j - 1], c_L_inverse[i], d[j], (d(len(d)) + j % 2) % 2))
+            ccw = (isCCW(c_L_inverse[i - 1], d[j - 1], c_L_inverse[i], (D.start_vertex + j % 2) % 2) and isCCW(d[j - 1], c_L_inverse[i], d[j], (D.start_vertex + j % 2) % 2))
+            clw = (isCLW(c_L_inverse[i - 1], d[j - 1], c_L_inverse[i], (D.start_vertex + j % 2) % 2) and isCLW(d[j - 1], c_L_inverse[i], d[j], (D.start_vertex + j % 2) % 2))
             # We need to check whether 4 edges are CCW or CLW, hence I broke it up into two cases of 3 edges.
 
-            if c_L_inverse(len(c_L_inverse)) == d(len(d)): # Starting vertex has same parity.
+            if C_inverse.start_vertex == D.start_vertex: # Starting vertex has same parity.
                 
                 # (i + j) % 2 == 0 ensures i, j have the same parity, given that the starting vertex has the same parity.
                 if (i + j) % 2 == 0 and (ccw or clw): # (i, j) is a crossing double point of c_L_inverse and d.
 
                     # D_minus[i][0] is the index of the starting vertex of the double path in c_L_inverse.
-                    if (D_minus[i][0] + c_L_inverse[len(c_L_inverse)]) % 2 == 0:
+                    if (D_minus[i][0] + C_inverse.start_vertex) % 2 == 0:
                         if (nbr(c_L_inverse[D_minus[i][0]], c_R[L - (D_minus[i][0] - 1)], 0) and c_L_inverse[D_minus[i][0] - 1] == c_R[L - D_minus[i][0]] and d[D_minus[i][1] - 1] == c_R[L - (D_minus[i][0] - 1)]):
                             n1 = 1
-                    elif (D_minus[i][0] + c_L_inverse[len(c_L_inverse)]) % 2 == 1:
+                    elif (D_minus[i][0] + C_inverse.start_vertex) % 2 == 1:
                         if (nbr(c_L_inverse[D_minus[i][0]], c_R[L - (D_minus[i][0] - 1)], 1) and c_L_inverse[D_minus[i][0] - 1] == c_R[L - D_minus[i][0]] and d[D_minus[i][1] - 1] == c_R[L - (D_minus[i][0] - 1)]):
                             n1 = 1
 
@@ -395,10 +411,10 @@ def Primitive_intersection(C, D):
                 if (i + j) % 2 == 1 and (ccw or clw):
 
                     # D_minus[i][0] is the index of the starting vertex of the double path in c_L_inverse.
-                    if (D_minus[i][0] + c_L_inverse[len(c_L_inverse)]) % 2 == 0:
+                    if (D_minus[i][0] + C_inverse.start_vertex) % 2 == 0:
                         if (nbr(c_L_inverse[D_minus[i][0]], c_R[L - (D_minus[i][0] - 1)], 0) and c_L_inverse[D_minus[i][0] - 1] == c_R[L - D_minus[i][0]] and d[D_minus[i][1] - 1] == c_R[L - (D_minus[i][0] - 1)]):
                             n1 = 1
-                    elif (D_minus[i][0] + c_L_inverse[len(c_L_inverse)]) % 2 == 1:
+                    elif (D_minus[i][0] + C_inverse.start_vertex) % 2 == 1:
                         if (nbr(c_L_inverse[D_minus[i][0]], c_R[L - (D_minus[i][0] - 1)], 1) and c_L_inverse[D_minus[i][0] - 1] == c_R[L - D_minus[i][0]] and d[D_minus[i][1] - 1] == c_R[L - (D_minus[i][0] - 1)]):
                             n1 = 1
 
@@ -412,7 +428,7 @@ def Primitive_intersection(C, D):
                     if n1 == 0 and n2 == 0:
                         d_minus += 1
 
-    L = len(c_L_inverse) - 1
+    L = len(c_L_inverse)
     # Now we count the number of crossing double paths of c_L_inverse and d, satisfying the desired conditions, i.e., when l > 0.
     for i in range(len(D_minus)):
         if D_minus[i][2] != 0: # Double Paths of positive length.
@@ -435,17 +451,17 @@ def Primitive_intersection(C, D):
             if (i_1 == 1 and i_3 == 1) or (i_2 == 1 and i_4 == 1): # At (i, j) we have a crossing double path of c_L_inverse and d.
 
                 # D_minus[i][0] is the index of the starting vertex of the double path in c_L_inverse.
-                if (D_minus[i][0] + c_L_inverse[len(c_L_inverse)]) % 2 == 0:
+                if (D_minus[i][0] + C_inverse.start_vertex) % 2 == 0:
                     if (nbr(c_L_inverse[D_minus[i][0]], c_R[L - (D_minus[i][0] - 1)], 0) and c_L_inverse[D_minus[i][0] - 1] == c_R[L - D_minus[i][0]] and d[D_minus[i][1] - 1] == c_R[L - (D_minus[i][0] - 1)]):
                         m1 = 1
-                elif (D_minus[i][0] + c_L_inverse[len(c_L_inverse)]) % 2 == 1:
+                elif (D_minus[i][0] + C_inverse.start_vertex) % 2 == 1:
                     if (nbr(c_L_inverse[D_minus[i][0]], c_R[L - (D_minus[i][0] - 1)], 1) and c_L_inverse[D_minus[i][0] - 1] == c_R[L - D_minus[i][0]] and d[D_minus[i][1] - 1] == c_R[L - (D_minus[i][0] - 1)]):
                         m1 = 1
 
-                if (D_minus[i][0] + D_minus[i][2] + c_L_inverse[len(c_L_inverse)]) % 2 == 0:
+                if (D_minus[i][0] + D_minus[i][2] + C_inverse.start_vertex) % 2 == 0:
                     if (nbr(c_L_inverse[D_minus[i][0] + D_minus[i][2] - 1], c_R[L - (D_minus[i][0] + D_minus[i][2])], 0) and c_L_inverse[D_minus[i][0] + D_minus[i][2]] == c_R[L - (D_minus[i][0] + D_minus[i][2]) - 1] and d[D_minus[i][1] + D_minus[i][2]] == c_R[L - (D_minus[i][0] + D_minus[i][2])]):
                         m2 = 1
-                elif (D_minus[i][0] + D_minus[i][2] + c_L_inverse[len(c_L_inverse)]) % 2 == 1:
+                elif (D_minus[i][0] + D_minus[i][2] + C_inverse.start_vertex) % 2 == 1:
                     if (nbr(c_L_inverse[D_minus[i][0] + D_minus[i][2] - 1], c_R[L - (D_minus[i][0] + D_minus[i][2])], 1) and c_L_inverse[D_minus[i][0] + D_minus[i][2]] == c_R[L - (D_minus[i][0] + D_minus[i][2]) - 1] and d[D_minus[i][1] + D_minus[i][2]] == c_R[L - (D_minus[i][0] + D_minus[i][2])]):
                         m2 = 1
                 

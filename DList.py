@@ -8,9 +8,7 @@ import reductions
 
 # Structure of a Node
 class Node:
-    def __init__(self, vertex, edge, turn, run_length):
-        self.vertex = vertex # Vertex at the beginning of the run
-        self.edge = edge # Edge into the run
+    def __init__(self, turn, run_length):
         self.turn = turn
         self.run_length = run_length
         self.mark_1 = False # mark_1 is for removing spurs and brackets to obtain a geodesic.
@@ -19,10 +17,12 @@ class Node:
         self.prev = None
 	
 class DoublyLinkedList:
-    def __init__(self, index_a, nbr_a):
+    def __init__(self, index_a, nbr_a, start_edge, start_vertex):
         self.start = None
         self.index_a = index_a
         self.nbr_a = nbr_a
+        self.start_edge = start_edge
+        self.start_vertex = start_vertex
 
     def check_empty(self):
         if self.start == None:
@@ -48,35 +48,39 @@ class DoublyLinkedList:
         total += temp.run_length
         return total
     
+    def start_list(self, edge, turn, run_length):
+        new_node = Node(turn, run_length)
+        new_node.next = new_node.prev = new_node
+        self.start = new_node
+        self.start_edge = edge
+        self.start_vertex = 0
+    
     def insertEnd(self, edge, turn, run_length):
     # If the list is empty, create a single node circular and doubly linked list
         if (self.start == None):
-            new_node = Node(0, edge, turn, run_length)
-            new_node.next = new_node.prev = new_node
-            self.start = new_node
-            return
-	 
-        last = (self.start).prev # If list is not empty find last node
-        new_node = Node((last.vertex + last.run_length) % 2, edge, turn, run_length)
-        new_node.next = self.start
-        (self.start).prev = new_node
-        new_node.prev = last
-        last.next = new_node
+            self.start_list(edge, turn, run_length)
+        else:	 
+            last = (self.start).prev # If list is not empty find last node
+            new_node = Node(turn, run_length)
+            new_node.next = self.start
+            (self.start).prev = new_node
+            new_node.prev = last
+            last.next = new_node
     
     def updateEnd(self):
         last = (self.start).prev
         last.run_length += 1
 
-    def insertBegin(self, edge, turn, run_length):
-        last = (self.start).prev
-        new_node = Node((last.vertex + last.run_length) % 2, edge, turn, run_length)
-        new_node.next = self.start
-        new_node.prev = last
-        last.next = (self.start).prev = new_node
-        self.start = new_node
+    def insertAfter(self, node, turn, run_length):
+        if node == None:
+            return
+        new_node = Node(turn, run_length)
+        new_node.next = node.next
+        new_node.prev = node
+        node.next.prev = new_node
+        node.next = new_node
 
     def deleteNode(self, node):
-        edge = node.edge
         if (self.start == None or node == None):
             return
         # If node to be deleted is start node
@@ -88,13 +92,12 @@ class DoublyLinkedList:
                     edge = (edge + node.turn) % len(self.nbr_a) # Note len(self.nbr_a) = len(nbr_z) = len(M)
                 else:
                     edge = self.nbr_a[(self.index_a[edge] + node.turn) % len(self.nbr_a)]
-            self.start.edge = edge
-            self.start.vertex = (self.start.vertex + (node.run_length % 2)) % 2 
+            self.start_edge = edge
+            self.start_vertex = (self.start_vertex + (node.run_length % 2)) % 2 
 
             node.prev.next = node.next
             node.next.prev = node.prev        
         # If node to be deleted is not start node
-        # Need to update edge, vertex of next node.
         else:
             node.prev.next = node.next
             node.next.prev = node.prev
@@ -126,8 +129,7 @@ class DoublyLinkedList:
                 node.prev.run_length += node.run_length
                 self.deleteNode(node)
         else:
-            vertex = (node.vertex + node.run_length - 1) % 2
-            new_node = Node(vertex, node.edge, new_turn, 1)
+            new_node = Node(new_turn, 1)
 
             # insert new_node between temp and next.
             new_node.next = node.next
@@ -148,7 +150,7 @@ class DoublyLinkedList:
                 node.prev.run_length += node.run_length
                 self.deleteNode(node)
         else:
-            new_node = Node(node.vertex, node.edge, new_turn, 1)
+            new_node = Node(new_turn, 1)
 
             # insert new_node between temp and next.
             new_node.next = node
@@ -156,12 +158,7 @@ class DoublyLinkedList:
             node.prev.next = new_node
             node.prev = new_node
 
-            node.run_length -= 1
-            if node.vertex == 0:
-                node.edge = (node.edge + node.turn) % len(self.nbr_a)
-            else:
-                node.edge = self.nbr_a[(self.index_a[node.edge] + node.turn) % len(self.nbr_a)]
-            node.vertex = (node.vertex + 1) % 2         
+            node.run_length -= 1         
   
     # O(l) time complexity.
     # Remember when we delete the start node from a circular doubly linked list, we update the start pointer as the next pointer.
@@ -348,15 +345,15 @@ class DoublyLinkedList:
 
         print("Traversal in forward direction:")
         while (temp.next != self.start):
-            print('(' + str(temp.vertex) + ',' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
+            print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
             temp = temp.next
-        print('(' + str(temp.vertex) + ',' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
+        print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
 
         print("\nTraversal in reverse direction:")
         last = self.start.prev
         temp = last
         while (temp.prev != last):
-            print('(' + str(temp.vertex) + ',' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
+            print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
             temp = temp.prev
-        print('(' + str(temp.vertex) + ',' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
+        print('(' + str(temp.turn) + ',' + str(temp.run_length) + ')', end=" ")
         print("\n")

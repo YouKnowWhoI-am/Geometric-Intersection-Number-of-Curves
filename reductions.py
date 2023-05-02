@@ -24,14 +24,14 @@ def std_rt_bracket(dlist, node, n):
     dlist.change_turn_all(node.next.next, n + 1)  
     dlist.decrease_run_length_by(node.next.next.next, 1)
     dlist.decrease_run_length_by(node.next, 1)
-    dlist.change_turn_all(node, node.turn + 1)
-    dlist.change_turn_all(node.next.next, node.next.next.turn + 1)
+    dlist.change_turn_one_start(node, node.turn + 1)
+    dlist.change_turn_one_end(node.next.next, node.next.next.turn + 1)
     dlist.change_turn_all(node.next, 2) 
 
 def cyclic_rt_bracket(dlist, node, n):
     # (\vbar{1}, \vbar{2}^r) --> (3, 2^{r - 2})
     dlist.change_turn_all(node, n + 1) 
-    dlist.decrease_run_length_by(node.next.next, 2)
+    dlist.decrease_run_length_by(node.next, 2)
     dlist.change_turn_all(node.next, 2)
     dlist.change_turn_all(node, 3)
 
@@ -48,16 +48,16 @@ def std_lt_bracket(dlist, node, n):
     dlist.change_turn_all(node.next.next, n + 1) 
     dlist.decrease_run_length_by(node.next.next.next, 1)
     dlist.decrease_run_length_by(node.next, 1)
-    dlist.change_turn_all(node, node.turn - 1)
-    dlist.change_turn_all(node.next.next, node.next.next.turn - 1)
-    dlist.change_turn_all(node.next, n - 2)
+    dlist.change_turn_one_start(node, node.turn - 1)
+    dlist.change_turn_one_end(node.next.next, node.next.next.turn - 1)
+    dlist.change_turn_all(node.next, -2)
 
 def cyclic_lt_bracket(dlist, node, n):
     # (1, 2^r) --> (\vbar{3}, \vbar{2}^{r - 2})
     dlist.change_turn_all(node, n + 1) 
-    dlist.decrease_run_length_by(node.next.next, 2)
-    dlist.change_turn_all(node.next, n - 2)
-    dlist.change_turn_all(node, n - 3)
+    dlist.decrease_run_length_by(node.next, 2)
+    dlist.change_turn_all(node.next, -2)
+    dlist.change_turn_all(node, -3)
 
 def near_cyclic_lt_bracket(dlist, node, n):
     # (x, 1, 2^r, 1) --> (x - 2, \vbar{2}^r)
@@ -65,15 +65,15 @@ def near_cyclic_lt_bracket(dlist, node, n):
     dlist.decrease_run_length_by(node.next.next.next, 1)
     dlist.decrease_run_length_by(node.next, 1)
     dlist.change_turn_all(node, node.turn - 2)
-    dlist.change_turn_all(node.next, n - 2)
+    dlist.change_turn_all(node.next, -2)
 
 def rt_shift_1(dlist, node, n):
     # x, \vbar{2}^s, \vbar{1}, \vbar{2}^t, y --> x + 1, 1, 2^{s - 1}, 3, 2^{t - 1}, 1, y + 1
     dlist.change_turn_all(node.next, n + 1) 
     dlist.change_turn_all(node.next.next.next, n + 1) 
     dlist.change_turn_all(node.next.next, 3)
-    dlist.change_turn_all(node.turn, node.turn + 1)
-    dlist.change_turn_all(node.next.next.next.next.turn, node.next.next.next.next.turn + 1)
+    dlist.change_turn_one_start(node, node.turn + 1)
+    dlist.change_turn_one_end(node.next.next.next.next.turn, node.next.next.next.next.turn + 1)
     dlist.insertAfter(node, 1, 1)
     dlist.insertAfter(node.next.next.next.next, 1, 1)
     dlist.change_turn_all(node.next.next, 2)
@@ -84,9 +84,9 @@ def rt_shift_1(dlist, node, n):
 def rt_shift_2(dlist, node, n):
     # x, \vbar{1}, \vbar{2}^t, y --> x + 1, 2^{t}, 1, y + 1
     dlist.change_turn_all(node.next.next, n + 1)
-    dlist.change_turn_all(node.next.turn, n + 2)
-    dlist.change_turn_all(node.turn, node.turn + 1)
-    dlist.change_turn_all(node.next.next.next.turn, node.next.next.next.turn + 1)
+    dlist.change_turn_all(node.next, n + 2)
+    dlist.change_turn_one_start(node, node.turn + 1)
+    dlist.change_turn_one_end(node.next.next.next, node.next.next.next.turn + 1)
     dlist.decrease_run_length_by(node.next.next, node.next.next.run_length - 1)
     dlist.decrease_run_length_by(node.next, 1 - node.next.next.run_length) # Basically, increasing run length
     dlist.change_turn_all(node.next, 2)
@@ -95,9 +95,9 @@ def rt_shift_2(dlist, node, n):
 def rt_shift_3(dlist, node, n):
     # x, \vbar{2}^s, \vbar{1}, y --> x + 1, 1, 2^{s}, y + 1
     dlist.change_turn_all(node.next.next, n + 1)
-    dlist.change_turn_all(node.next.turn, n + 2)
-    dlist.change_turn_all(node.turn, node.turn + 1)
-    dlist.change_turn_all(node.next.next.next.turn, node.next.next.next.turn + 1)
+    dlist.change_turn_all(node.next, n + 2)
+    dlist.change_turn_one_start(node, node.turn + 1)
+    dlist.change_turn_one_end(node.next.next.next, node.next.next.next.turn + 1)
     dlist.decrease_run_length_by(node.next, node.next.run_length - 1)
     dlist.decrease_run_length_by(node.next.next, 1 - node.next.run_length) # Basically, increasing run length
     dlist.change_turn_all(node.next, 1)
@@ -108,7 +108,7 @@ def rt_shift_4(dlist, node, n):
     dlist.change_turn_all(node.next, n + 1) 
     dlist.change_turn_all(node.next.next.next, n + 1) 
     dlist.change_turn_all(node.next.next, 3)
-    dlist.change_turn_all(node.turn, node.turn + 2)
+    dlist.change_turn_all(node, node.turn + 2)
     dlist.insertAfter(node, 1, 1)
     dlist.insertAfter(node.next.next.next.next, 1, 1)
     dlist.change_turn_all(node.next.next, 2)
@@ -119,8 +119,8 @@ def rt_shift_4(dlist, node, n):
 def rt_shift_5(dlist, node, n):
     # (x, \vbar{1}, \vbar{2}^t) --> (x + 2, 2^{t}, 1)
     dlist.change_turn_all(node.next.next, n + 1)
-    dlist.change_turn_all(node.next.turn, n + 2)
-    dlist.change_turn_all(node.turn, node.turn + 2)
+    dlist.change_turn_all(node.next, n + 2)
+    dlist.change_turn_all(node, node.turn + 2)
     dlist.decrease_run_length_by(node.next.next, node.next.next.run_length - 1)
     dlist.decrease_run_length_by(node.next, 1 - node.next.next.run_length) # Basically, increasing run length
     dlist.change_turn_all(node.next, 2)
@@ -129,8 +129,8 @@ def rt_shift_5(dlist, node, n):
 def rt_shift_6(dlist, node, n):
     # (x, \vbar{2}^s, \vbar{1}) --> (x + 2, 1, 2^{s})
     dlist.change_turn_all(node.next.next, n + 1)
-    dlist.change_turn_all(node.next.turn, n + 2)
-    dlist.change_turn_all(node.turn, node.turn + 2)
+    dlist.change_turn_all(node.next, n + 2)
+    dlist.change_turn_all(node, node.turn + 2)
     dlist.decrease_run_length_by(node.next, node.next.run_length - 1)
     dlist.decrease_run_length_by(node.next.next, 1 - node.next.run_length) # Basically, increasing run length
     dlist.change_turn_all(node.next, 1)
@@ -141,7 +141,7 @@ def rt_shift_7(dlist, node, n):
     dlist.change_turn_all(node.next, n + 1)
     dlist.change_turn_all(node.next.next.next, n + 1)
     dlist.change_turn_all(node.next.next, 3)
-    dlist.change_turn_all(node.turn, 1)
+    dlist.change_turn_all(node, 1)
     dlist.change_turn_all(node.next, 2)
     dlist.change_turn_all(node.next.next.next, 2)
 
